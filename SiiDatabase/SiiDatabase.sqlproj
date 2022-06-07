@@ -1,0 +1,235 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Name>SiiDatabase</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>4.1</ProjectVersion>
+    <ProjectGuid>{ab8b1bd9-9304-4ab1-8912-cdab05e264d2}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql110DatabaseSchemaProvider</DSP>
+    <OutputType>Database</OutputType>
+    <RootPath>
+    </RootPath>
+    <RootNamespace>SiiDatabase</RootNamespace>
+    <AssemblyName>SiiDatabase</AssemblyName>
+    <ModelCollation>1033, CI</ModelCollation>
+    <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
+    <DeployToDatabase>True</DeployToDatabase>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetLanguage>CS</TargetLanguage>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <SqlServerVerification>False</SqlServerVerification>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
+    <!-- Default to the v11.0 targets path if the targets file for the current VS version is not found -->
+    <SSDTExists Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</SSDTExists>
+    <VisualStudioVersion Condition="'$(SSDTExists)' == ''">11.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Condition="'$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <ItemGroup>
+    <Folder Include="Properties" />
+    <Folder Include="dbo" />
+    <Folder Include="dbo\PostPublishScript" />
+    <Folder Include="dbo\Stored Procedures" />
+    <Folder Include="dbo\Tables" />
+    <Folder Include="dbo\Types" />
+    <Folder Include="dbo\TRIGGERS" />
+  </ItemGroup>
+  <ItemGroup>
+    <PostDeploy Include="dbo\PostPublishScript\Script.PostDeployData.sql" />
+    <Build Include="dbo\Stored Procedures\CAU_GET_CAUSAEXENCION.sql" />
+    <Build Include="dbo\Stored Procedures\CBR_INSERT_OR_UPDATE_COBROS.sql" />
+    <Build Include="dbo\Stored Procedures\CLA_GET_CLAVEREGIMEN_BY_IDLIBROREGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\CLI_GET_CLIENT_BY_NIF.sql" />
+    <Build Include="dbo\Stored Procedures\CLI_GET_CLIENT_BY_USERID.sql" />
+    <Build Include="dbo\Stored Procedures\CLT_INSERT_OR_UPDATE_CLIENTE.sql" />
+    <Build Include="dbo\Stored Procedures\COB_DELETE_COBRO_BY_ID.sql" />
+    <Build Include="dbo\Stored Procedures\COB_DELETE_COBROS_EMITIDAS_BY_IDREGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\COB_GET_COBROS_EMITIDAS.sql" />
+    <Build Include="dbo\Stored Procedures\DAT_GET_DATOS_DESCUADRE_BY_IDREGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\DAT_INSERT_UPDATE_DATOS_DESCUADRE_CONTRAPARTE.sql" />
+    <Build Include="dbo\Stored Procedures\DET_DELETE_DETALLE_INMUEBLE_BY_IDREGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\DET_GET_DETALLE_IMPORTES_IVA.sql" />
+    <Build Include="dbo\Stored Procedures\DET_GET_DETALLE_INMUEBLE.sql" />
+    <Build Include="dbo\Stored Procedures\DET_INSERT_DETALLE_INMUEBLE.sql" />
+    <Build Include="dbo\Stored Procedures\DII_DELETE_DETALLE_IMPORTESIVA_BY_IDREGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\DII_INSERT_OR_UPDATE_DETALLE_IMPORTES_IVA.sql" />
+    <Build Include="dbo\Stored Procedures\EOP_GET_ESTADOOPERATION.sql" />
+    <Build Include="dbo\Stored Procedures\ERG_GET_ESTADOREGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\ESO_INSERT_OR_UPDATE_ESTADO_OPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\ESR_GET_ESTADO_REGISTRO_BY_DESCRIPCION.sql" />
+    <Build Include="dbo\Stored Procedures\ESR_INSERT_OR_UPDATE_ESTADO_REGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\EST_GET_ESTADO_CUADRE.sql" />
+    <Build Include="dbo\Stored Procedures\FAG_DELETE_FACTURA_AGRUPADA_BY_IDREGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\FAG_GET_FACTURAS_AGRUPADAS.sql" />
+    <Build Include="dbo\Stored Procedures\FAG_INSERT_OR_UPDATE_FACTURAS_AGRUPADAS.sql" />
+    <Build Include="dbo\Stored Procedures\FRC_DELETE_FACTURA_RECTIFICADA_BY_IDREGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\FRC_GET_FACTURAS_RECTIFICADAS.sql" />
+    <Build Include="dbo\Stored Procedures\FRC_INSERT_OR_UPDATE_FACTURAS_RECTIFICADAS.sql" />
+    <Build Include="dbo\Stored Procedures\IDT_GET_IDTYPE.sql" />
+    <Build Include="dbo\Stored Procedures\LIQ_GET_LIQUIDACION_BY_PERIODIFICACION.sql" />
+    <Build Include="dbo\Stored Procedures\LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC.sql" />
+    <Build Include="dbo\Stored Procedures\LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC_DI.sql" />
+    <Build Include="dbo\Stored Procedures\LRG_GET_LIBROREGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\LRG_INSERT_OR_UPDATE_LIBRO_REGISTRO.sql" />
+    <Build Include="dbo\Stored Procedures\MED_GET_MEDIO.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_LATEST_OPERATIONS.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_LATEST_OPERATIONS_BY_FILTER.sql">
+      <AnsiNulls>Off</AnsiNulls>
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="dbo\Stored Procedures\OPE_GET_OPERACIONES_BY_EJERCICIO_AND_LIBRO.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_OPERATION_BY_ID_AND_USER.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_OPERATIONS_BY_CSV.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_OPERATIONS_BY_FILTER.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_UPDATE_OPERACION_ESTADO.sql" />
+    <Build Include="dbo\Stored Procedures\OPR_INSERT_OR_UPDATE_OPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\PAG_DELETE_PAGO_BY_ID.sql" />
+    <Build Include="dbo\Stored Procedures\PAG_DELETE_PAGOS_RECIBIDAS_BY_IDREGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\PAG_GET_PAGOS_RECIBIDAS.sql" />
+    <Build Include="dbo\Stored Procedures\PAR_GET_PARAMETERS_BY_USERID.sql" />
+    <Build Include="dbo\Stored Procedures\PAR_INSERT_UPDATE_PARAMETERS_BY_CLIENTID.sql" />
+    <Build Include="dbo\Stored Procedures\PER_GET_PERIODOS_BY_TIPOPRESENTACION.sql" />
+    <Build Include="dbo\Stored Procedures\PGO_INSERT_OR_UPDATE_PAGOS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_FACTURAS_MODIFICADA_BAJA.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_LIQUIDACION_BY_FILTER_BY_PAGINA.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_OPEARACIONES_TO_MODAL.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROINFORMACION_BY_ID.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROINFORMACION_IGIC_BYID.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_APROCESAR.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_ALL_RECORDS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_PENDIENTES_CORRECCION.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROSINFORMACION_BY_FILTER.sql" />
+    <Build Include="dbo\Stored Procedures\REG_INSERT_UPDATE_DATOS_COMPLEMENTARIOS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_INSERT_UPDATE_REGISTROINFORMACION_IGIC.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_COBROPAGO_NOT_NUEVO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_ESTADO_CUADRE.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_ESTADO_LECTURA_BY_ID.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_ESTADO_LECTURA_TO_PROCESSADA.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_REGISTRO_INFORMACION_ESTADO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_REGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\RES_GET_RESULTADO_OPERACION_BY_DESCRIPCION.sql" />
+    <Build Include="dbo\Stored Procedures\RES_INSERT_OR_UPDATE_RESULTADO_OPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\RIN_BAJA_REGISTROINFORMACION_BY_ID.sql" />
+    <Build Include="dbo\Stored Procedures\RIN_BAJA_REGISTROINFORMACION_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA.sql" />
+    <Build Include="dbo\Stored Procedures\RIN_GET_ID_REGISTRO_INFORMATIO_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA.sql" />
+    <Build Include="dbo\Stored Procedures\RIN_INSERT_OR_UPDATE_REGISTRO_INFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\ROP_GET_LAST_REGISTROOPERACION_BY_REGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\ROP_GET_REGISTROOPERACION_BY_ID_REGISTROINFORMACION.sql" />
+    <Build Include="dbo\Stored Procedures\ROP_GET_RESULTADOOPERATION.sql" />
+    <Build Include="dbo\Stored Procedures\ROP_INSERT_OR_UPDATE_REGISTROS_OPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\TIP_GET_TIPOBIENOPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\TIP_GET_TIPODOCUMENTO_ART25.sql" />
+    <Build Include="dbo\Stored Procedures\TIP_GET_TIPOFACTURA.sql" />
+    <Build Include="dbo\Stored Procedures\TOP_GET_TIPOOPERATION.sql" />
+    <Build Include="dbo\Stored Procedures\TOP_INSERT_OR_UPDATE_TIPO_OPERACION.sql" />
+    <Build Include="dbo\Stored Procedures\TPF_INSERT_OR_UPDATE_TIPO_FACTURA.sql" />
+    <Build Include="dbo\Stored Procedures\TUS_INSERT_OR_UPDATE_TIPO_USUARIO.sql" />
+    <Build Include="dbo\Stored Procedures\USR_INSERT_OR_UPDATE_USUARIO.sql" />
+    <Build Include="dbo\Tables\CausaExencion.sql" />
+    <Build Include="dbo\Tables\ClaveRegimen.sql" />
+    <Build Include="dbo\Tables\Cliente.sql" />
+    <Build Include="dbo\Tables\Cobros.sql" />
+    <Build Include="dbo\Tables\DatosComplementarios.sql" />
+    <Build Include="dbo\Tables\DatosDescuadreContraparte.sql" />
+    <Build Include="dbo\Tables\DetalleImportesIVA.sql" />
+    <Build Include="dbo\Tables\DetalleInmueble.sql" />
+    <Build Include="dbo\Tables\EstadoCobroPago.sql" />
+    <Build Include="dbo\Tables\EstadoCuadre.sql" />
+    <Build Include="dbo\Tables\Estadolectura.sql" />
+    <Build Include="dbo\Tables\EstadoOperacion.sql" />
+    <Build Include="dbo\Tables\EstadoRegistro.sql" />
+    <Build Include="dbo\Tables\FacturasAgrupadas.sql" />
+    <Build Include="dbo\Tables\FacturasRectificadas.sql" />
+    <Build Include="dbo\Tables\LibroRegistro.sql" />
+    <Build Include="dbo\Tables\Medio.sql" />
+    <Build Include="dbo\Tables\Operacion.sql" />
+    <Build Include="dbo\Tables\Pagos.sql" />
+    <Build Include="dbo\Tables\Parameters.sql" />
+    <Build Include="dbo\Tables\Periodo.sql" />
+    <Build Include="dbo\Tables\RegistroInformacion.sql" />
+    <Build Include="dbo\Tables\RegistroInformacion_IGIC.sql" />
+    <Build Include="dbo\Tables\RegistrosOperacion.sql" />
+    <Build Include="dbo\Tables\ResultadoOperacion.sql" />
+    <Build Include="dbo\Tables\TipoBienOperacion.sql" />
+    <Build Include="dbo\Tables\TipoDetalleIVA.sql" />
+    <Build Include="dbo\Tables\TipoDocumento.sql" />
+    <Build Include="dbo\Tables\TipoDocumentoArt25.sql" />
+    <Build Include="dbo\Tables\TipoFactura.sql" />
+    <Build Include="dbo\Tables\TipoLibro.sql" />
+    <Build Include="dbo\Tables\TipoOperacion.sql" />
+    <Build Include="dbo\Tables\TipoUsuario.sql" />
+    <Build Include="dbo\Tables\Usuario.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <Build Include="dbo\Stored Procedures\REG_COUNT_REGISTROS_APROCESAR.sql" />
+    <Build Include="dbo\Stored Procedures\REG_COUNT_REGISTROS_PENDIENTES_CORRECCION.sql" />
+    <Build Include="dbo\Tables\Operaciones_Periodo.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_RECALCUL_OPERACIONES_PERIODO.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_UPDATE_COUNT_OPERACIONES_PERIODO.sql" />
+    <Build Include="dbo\Types\SelectedIds.sql" />
+    <Build Include="dbo\Stored Procedures\USE_SELECT_USUARIOS.sql" />
+    <Build Include="dbo\Tables\Libros.sql" />
+    <Build Include="dbo\Stored Procedures\LIB_INITIALISER_LIBROS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_INDEX.sql" />
+    <Build Include="dbo\TRIGGERS\TRIGGER_LIBRO_REGISTRO_UPDATED.sql" />
+    <Build Include="dbo\TRIGGERS\TRIGGER_UPDATE_DETALLE_IVA.sql" />
+    <Build Include="dbo\Stored Procedures\LIB_GET_LIBROS_BY_EJERCICIO_PERIODO_LIBRO.sql" />
+    <Build Include="dbo\Stored Procedures\LIB_GET_LIBROS_BY_OTROS_FILTERS.sql" />
+    <Build Include="dbo\Stored Procedures\LIB_GET_LIBROS_BY_SELECTED_IDS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_LIQUIDACION_BY_FILTER.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_INFORMATIO_BY_EJERCICIO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_REGISTRO_INFORMACION_FECHA_FIN_PLAZO.sql" />
+    <Build Include="dbo\Stored Procedures\LIB_COUNT_LIBROS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_COUNT_REGISTROS_APROCESAR_LIBROS.sql" />
+    <Build Include="dbo\Stored Procedures\REG_COUNT_REGISTROS_PENDIENTES_CORRECCION_LIBROS.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_OPERACIONES_PERIODOS_BY_EJERCICIO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_PENDIENTES_CORRECCION_ALL.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROSINFORMACION_BY_FILTER_ALL.sql" />
+    <Build Include="dbo\Stored Procedures\OPERACION_INSERTED.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_GET_LATEST_OPERATIONS_BY_FILTER_START_RECORDS.sql" />
+    <Build Include="dbo\Types\TableRegistroFecha.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_REGISTRO_INFORMACION_FECHA_FIN_PLAZO_BY_TABLE.sql" />
+    <Build Include="dbo\Stored Procedures\OPE_COUNT_OPERACIONES_USUARIO.sql" />
+    <Build Include="dbo\Stored Procedures\USE_ELIMINAR_USUARIO.sql" />
+    <Build Include="dbo\Stored Procedures\CLI_UPDATE_CLIENTE.sql" />
+    <Build Include="dbo\Stored Procedures\PAR_GET_PARAMETERS_BY_NIF.sql" />
+    <Build Include="dbo\Stored Procedures\REG_UPDATE_COBROPAGO_ESTADO.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_ANULADOS.sql" />
+    <Build Include="dbo\Stored Procedures\CON_GET_CONSULTA_349.sql" />
+    <Build Include="dbo\Stored Procedures\REG_GET_REGISTROS_CONSULTA_349.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <RefactorLog Include="SiiDatabase.refactorlog" />
+  </ItemGroup>
+</Project>

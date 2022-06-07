@@ -1,0 +1,7 @@
+﻿CREATE PROCEDURE [dbo].[PAG_DELETE_PAGO_BY_ID]
+	@Id int
+AS
+BEGIN
+	DELETE Pagos WHERE Id = @Id
+END
+

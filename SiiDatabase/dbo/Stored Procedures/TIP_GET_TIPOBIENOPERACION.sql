@@ -1,0 +1,6 @@
+﻿CREATE PROCEDURE [dbo].[TIP_GET_TIPOBIENOPERACION]
+AS
+BEGIN
+	SELECT Id, Descripcion FROM TipoBienOperacion
+END
+
