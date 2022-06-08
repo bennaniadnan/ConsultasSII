@@ -1,13 +1,18 @@
 ﻿using Consultas.SII.Contracts;
 using Consultas.SII.Entities;
+using Consultas.SII.Entities.Enumerator;
 using Consultas.SII.Entities.Model.BaseType.Consulta;
 using Consultas.SII.Entities.Model.BaseType.Consulta.Request.Contraste;
+using Consultas.SII.Entities.Model.BaseType.Consulta.Response;
+using Consultas.SII.Entities.Model.BaseType.Consulta.Response.AEAT;
 
 using Gesisa.Apps.Common.Enums;
 using Gesisa.Apps.Common.Models;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+
+using Newtonsoft.Json;
 
 using System;
 using System.Collections.Generic;
@@ -23,6 +28,56 @@ using System.Xml.Serialization;
 namespace Consultas.SII.Helpers
 {
 
+	public static class ConvertExtension
+	{
+		public static int ToInteger(this string value)
+		{
+			int result = 0;
+			if (int.TryParse(value, out result))
+			{
+			}
+			return result;
+		}
+
+		public static string ToJson(this object obj)
+		{
+			return JsonConvert.SerializeObject(obj);
+		}
+
+
+		public static EnumEstadoRegistro? ToNullableEnumEstadoRegistro(this string pEstadoString)
+		{
+
+			switch (pEstadoString)
+			{
+				case "Correcto":
+				case "Correcta":
+					pEstadoString = "Aceptado";
+					break;
+				case "ParcialmenteCorrecto":
+				case "AceptadaConErrores":
+					pEstadoString = "AceptadoConErrores";
+					break;
+				case "Incorrecto":
+					pEstadoString = "Rechazado";
+					break;
+				case "Anulada":
+					pEstadoString = "Baja";
+					break;
+				default:
+					break;
+			}
+			if (Enum.TryParse(typeof(EnumEstadoRegistro), pEstadoString, out object? estado))
+			{
+				return (EnumEstadoRegistro)estado;
+			}
+			return null;
+		}
+	}
+	public class ApplicationSecrets
+	{
+
+	}
 	/// <summary>
 	/// the application configuration accessor
 	/// </summary>
@@ -126,6 +181,42 @@ namespace Consultas.SII.Helpers
 
 	}
 
+
+	/// <summary>
+	/// the implementation for <see cref="IApplicationSecretsAccessor"/>
+	/// </summary>
+	public partial class ApplicationSecretsAccessor
+	{
+
+	}
+
+	/// <summary>
+	/// partial part for <see cref="ApplicationSecretsAccessor"/>
+	/// </summary>
+	public partial class ApplicationSecretsAccessor : IApplicationSecretsAccessor
+	{
+		private readonly IDisposable _secretsChangedDisposable;
+		private ApplicationSecrets _secrets;
+
+		/// <summary>
+		/// create an instant of <see cref="ApplicationSecretsAccessor"/>
+		/// </summary>
+		/// <param name="options">the options monitor instant</param>
+		public ApplicationSecretsAccessor(IOptionsMonitor<ApplicationSecrets> options)
+		{
+			_secrets = options.CurrentValue;
+			_secretsChangedDisposable = options.OnChange(e => _secrets = e);
+		}
+
+		/// <summary>
+		/// the object destructor
+		/// </summary>
+		~ApplicationSecretsAccessor()
+		{
+			_secretsChangedDisposable?.Dispose();
+		}
+	}
+
 	/// <summary>
 	/// this class hold the global application settings extracted from IConfiguration in the appSettings.json file
 	/// any changes to the AppSetting file should be applied here also
@@ -148,6 +239,264 @@ namespace Consultas.SII.Helpers
 		public TaxAgencySettings TaxAgency { get; set; }
 
 		public AccountSettings AccountSettings { get; set; }
+	}
+
+	public class ApplicationModelsMappingProfile : AutoMapper.Profile
+	{
+		public ApplicationModelsMappingProfile()
+		{
+
+			#region "Suministro"
+			CreateMap<DetalleInmueble, EDetalleInmueble>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.SituacionInmueble, o => o.MapFrom(c => c.SituacionInmueble.parseToInt()))
+				.ForMember(x => x.ReferenciaCatastral, o => o.MapFrom(c => c.ReferenciaCatastral));
+
+			CreateMap<IDFacturaAgrupada, EFacturasAgrupadas>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.NumSerieFacturaEmisor.Trim()))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => !string.IsNullOrEmpty(c.FechaExpedicionFacturaEmisor)
+														? c.FechaExpedicionFacturaEmisor.parseToDateTime() : new DateTime(1901, 1, 1).Date));
+
+
+
+			CreateMap<IDFacturaRectificada, EFacturasRectificadas>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.NumSerieFacturaEmisor.Trim()))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => !string.IsNullOrEmpty(c.FechaExpedicionFacturaEmisor)
+							? c.FechaExpedicionFacturaEmisor.parseToDateTime() : new DateTime(1901, 1, 1).Date));
+
+			CreateMap<DetalleIVA, EDetalleImportesIVA>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistro, o => o.Ignore())
+				.ForMember(x => x.IdTipoDetalleIVA, o => o.Ignore())
+				.ForMember(x => x.CuotaRecargoMinorista, o => o.Ignore())
+				.ForMember(x => x.CargaImpositivaImplicita, o => o.Ignore())
+				.ForMember(x => x.TipoImpositivo, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoImpositivo) ? c.TipoImpositivo.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BaseImponible, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BaseImponible) ? c.BaseImponible.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRepercutida, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRepercutida) ? c.CuotaRepercutida.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaSoportada, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaSoportada) ? c.CuotaSoportada.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoEquivalencia) ? c.CuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.TipoRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoRecargoEquivalencia) ? c.TipoRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.ImporteCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.ImporteCompensacionREAGYP) ? c.ImporteCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.PorcentCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.PorcentCompensacionREAGYP) ? c.PorcentCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BienInversion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BienInversion) ? c.BienInversion.Trim() : null));
+
+			CreateMap<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistro, o => o.Ignore())
+				.ForMember(x => x.IdTipoDetalleIVA, o => o.Ignore())
+				.ForMember(x => x.TipoImpositivo, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoImpositivo) ? c.TipoImpositivo.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BaseImponible, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BaseImponible) ? c.BaseImponible.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRepercutida, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRepercutida) ? c.CuotaRepercutida.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaSoportada, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaSoportada) ? c.CuotaSoportada.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoMinorista, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoMinorista) ? c.CuotaRecargoMinorista.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CargaImpositivaImplicita, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CargaImpositivaImplicita) ? c.CargaImpositivaImplicita.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoEquivalencia) ? c.CuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.TipoRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoRecargoEquivalencia) ? c.TipoRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.ImporteCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.ImporteCompensacionREAGYP) ? c.ImporteCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.PorcentCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.PorcentCompensacionREAGYP) ? c.PorcentCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BienInversion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BienInversion) ? c.BienInversion.Trim() : null));
+
+			CreateMap<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistro, o => o.Ignore())
+				.ForMember(x => x.IdTipoDetalleIVA, o => o.Ignore())
+				.ForMember(x => x.CuotaRecargoMinorista, o => o.Ignore())
+				.ForMember(x => x.CargaImpositivaImplicita, o => o.Ignore())
+				.ForMember(x => x.TipoImpositivo, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoImpositivo) ? c.TipoImpositivo.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BaseImponible, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BaseImponible) ? c.BaseImponible.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRepercutida, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRepercutida) ? c.CuotaRepercutida.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaSoportada, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaSoportada) ? c.CuotaSoportada.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoEquivalencia) ? c.CuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.TipoRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoRecargoEquivalencia) ? c.TipoRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.ImporteCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.ImporteCompensacionREAGYP) ? c.ImporteCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.PorcentCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.PorcentCompensacionREAGYP) ? c.PorcentCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BienInversion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BienInversion) ? c.BienInversion.Trim() : null));
+
+			CreateMap<DetalleIGIC, EDetalleImportesIVA>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistro, o => o.Ignore())
+				.ForMember(x => x.IdTipoDetalleIVA, o => o.Ignore())
+				.ForMember(x => x.TipoImpositivo, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoImpositivo) ? c.TipoImpositivo.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BaseImponible, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BaseImponible) ? c.BaseImponible.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRepercutida, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRepercutida) ? c.CuotaRepercutida.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaSoportada, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaSoportada) ? c.CuotaSoportada.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoMinorista, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoMinorista) ? c.CuotaRecargoMinorista.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CargaImpositivaImplicita, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CargaImpositivaImplicita) ? c.CargaImpositivaImplicita.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoEquivalencia) ? c.CuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.TipoRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoRecargoEquivalencia) ? c.TipoRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.ImporteCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.ImporteCompensacionREAGYP) ? c.ImporteCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.PorcentCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.PorcentCompensacionREAGYP) ? c.PorcentCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BienInversion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BienInversion) ? c.BienInversion.Trim() : null));
+
+
+			#endregion "Suministro"
+
+			#region "Respuesta"
+
+
+
+			CreateMap<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistro, o => o.Ignore())
+				.ForMember(x => x.IdTipoDetalleIVA, o => o.Ignore())
+				.ForMember(x => x.CuotaRecargoMinorista, o => o.Ignore())
+				.ForMember(x => x.CargaImpositivaImplicita, o => o.Ignore())
+				.ForMember(x => x.TipoImpositivo, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoImpositivo) ? c.TipoImpositivo.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BaseImponible, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BaseImponible) ? c.BaseImponible.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRepercutida, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRepercutida) ? c.CuotaRepercutida.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaSoportada, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaSoportada) ? c.CuotaSoportada.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.CuotaRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.CuotaRecargoEquivalencia) ? c.CuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.TipoRecargoEquivalencia, o => o.MapFrom(c => !string.IsNullOrEmpty(c.TipoRecargoEquivalencia) ? c.TipoRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.ImporteCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.ImporteCompensacionREAGYP) ? c.ImporteCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.PorcentCompensacionREAGYP, o => o.MapFrom(c => !string.IsNullOrEmpty(c.PorcentCompensacionREAGYP) ? c.PorcentCompensacionREAGYP.Trim().Replace(".", ",").parseToDecimal() : 0))
+				.ForMember(x => x.BienInversion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.BienInversion) ? c.BienInversion.Trim() : null));
+
+			CreateMap<RespuestaConsultaIDFacturaAgrupada, EFacturasAgrupadas>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.NumSerieFacturaEmisor))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => c.FechaExpedicionFacturaEmisor.parseToNullableDateTime()));
+
+			CreateMap<RespuestaConsultaIDFacturaRectificada, EFacturasRectificadas>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.NumSerieFacturaEmisor))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => c.FechaExpedicionFacturaEmisor.parseToNullableDateTime()));
+
+
+			CreateMap<Entities.Model.BaseType.Consulta.Response.AEAT.RespuestaConsultaLRFacturasEmitidas, ERegistroInformacion>()
+				.ForMember(x => x.IdLibroRegistro, o => o.MapFrom(c => EnumLibroRegistro.FE.ToString()))
+				.ForMember(x => x.NifDeclarante, o => o.MapFrom(c => c.Cabecera.Titular.NIF))
+				.ForMember(x => x.NombreRazon, o => o.MapFrom(c => c.Cabecera.Titular.NombreRazon))
+				.ForMember(x => x.Periodo, o => o.MapFrom(c => c.PeriodoLiquidacion.Periodo))
+				.ForMember(x => x.Ejercicio, o => o.MapFrom(c => c.PeriodoLiquidacion.Ejercicio));
+
+			CreateMap<RespuestaConsultaDatosFacturaEmitida, EDatosComplementarios>()
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.ClaveRegimen1, o => o.MapFrom(c => c.ClaveRegimenEspecialOTrascendenciaAdicional1))
+				.ForMember(x => x.ClaveRegimen2, o => o.MapFrom(c => c.ClaveRegimenEspecialOTrascendenciaAdicional2))
+				.ForMember(x => x.SimplificadaArt, o => o.MapFrom(c => c.FacturaSimplificadaArticulos72_73))
+				.ForMember(x => x.SinDestinatario, o => o.MapFrom(c => c.FacturaSinIdentifDestinatarioAritculo61d))
+				.ForMember(x => x.Macrodato, o => o.MapFrom(c => c.Macrodato))
+				.ForMember(x => x.RefExterna, o => o.MapFrom(c => c.RefExterna))
+				.ForMember(x => x.NifSucedida, o => o.MapFrom(c => c.EntidadSucedida.NIF))
+				.ForMember(x => x.NombreSucedida, o => o.MapFrom(c => c.EntidadSucedida.NombreRazon))
+				.ForMember(x => x.RegPrevio, o => o.MapFrom(c => c.RegPrevioGGEEoREDEMEoCompetencia))
+				.ForMember(x => x.NumRegistroAcuerdoFacturacion, o => o.MapFrom(c => c.NumRegistroAutorizacionFacturacion))
+				.ForMember(x => x.FacturaEnergia, o => o.MapFrom(c => c.FacturacionDispAdicionalTerceraYsextayDelMercadoOrganizadoDelGas));
+
+			CreateMap<RespuestaConsultaDatosDescuadreContraparte, EDatosDescuadreContraparte>()
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.SumBaseImponibleISP, o => o.MapFrom(c => c.SumBaseImponibleISP.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.SumBaseImponible, o => o.MapFrom(c => c.SumBaseImponible.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.SumCuota, o => o.MapFrom(c => c.SumCuota.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.SumCuotaRecargoEquivalencia, o => o.MapFrom(c => c.SumCuotaRecargoEquivalencia.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.ImporteTotal, o => o.MapFrom(c => c.ImporteTotal.Trim().Replace(".", ",").parseToDecimal()));
+
+			CreateMap<RespuestaConsultaDetalleInmueble, EDetalleInmueble>()
+				.ForMember(x => x.Id, o => o.Ignore())
+				.ForMember(x => x.IdRegistroInformacion, o => o.Ignore())
+				.ForMember(x => x.SituacionInmueble, o => o.MapFrom(c => c.SituacionInmueble.parseToInt()))
+				.ForMember(x => x.ReferenciaCatastral, o => o.MapFrom(c => c.ReferenciaCatastral));
+
+			CreateMap<Entities.Model.BaseType.Consulta.Response.AEAT.RegistroRespuestaConsultaLRFacturasEmitidas, ERegistroInformacion>()
+				.ForMember(x => x.IdLibroRegistro, o => o.MapFrom(c => EnumLibroRegistro.FE.ToString()))
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.IDFactura.NumSerieFacturaEmisor.Trim()))
+				.ForMember(x => x.NumSerieFacturaEmisorResumenFin, o => o.MapFrom(c => c.IDFactura.NumSerieFacturaEmisorResumenFin.Trim()))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => !string.IsNullOrEmpty(c.IDFactura.FechaExpedicionFacturaEmisor)
+							? c.IDFactura.FechaExpedicionFacturaEmisor.parseToDateTime() : new DateTime(1900, 1, 1)))
+				.ForMember(x => x.NifFacturaEmisor, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.NIF.Trim()))
+				.ForMember(x => x.IDIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.ID.Trim()))
+				.ForMember(x => x.IDTypeIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.IDType.Trim()))
+				.ForMember(x => x.CodigoPaisIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.CodigoPais.Trim()))
+
+				.ForMember(x => x.TipoFactura, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaEmitida.TipoFactura) ? c.DatosFacturaEmitida.TipoFactura : null))
+				.ForMember(x => x.TipoRectificativa, o => o.MapFrom(c => c.DatosFacturaEmitida.TipoRectificativa))
+				.ForMember(x => x.FechaOperacion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaEmitida.FechaOperacion)
+							? c.DatosFacturaEmitida.FechaOperacion.parseToNullableDateTime() : null))
+				.ForMember(x => x.ClaveRegimenEspecialOTrascendencia, o => o.MapFrom(c => c.DatosFacturaEmitida.ClaveRegimenEspecialOTrascendencia))
+				.ForMember(x => x.ImporteTotal, o => o.MapFrom(c => c.DatosFacturaEmitida.ImporteTotal.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.BaseImponibleACoste, o => o.MapFrom(c => c.DatosFacturaEmitida.BaseImponibleACoste.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.DescripcionOperacion, o => o.MapFrom(c => c.DatosFacturaEmitida.DescripcionOperacion))
+				.ForMember(x => x.ImporteTransmisionSujetoAIVA, o => o.MapFrom(c => c.DatosFacturaEmitida.ImporteTransmisionInmueblesSujetoAIVA.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.EmitidaPorTerceros, o => o.MapFrom(c => c.DatosFacturaEmitida.EmitidaPorTercerosODestinatario))
+				.ForMember(x => x.VariosDestinatarios, o => o.MapFrom(c => c.DatosFacturaEmitida.VariosDestinatarios))
+				.ForMember(x => x.Cupon, o => o.MapFrom(c => c.DatosFacturaEmitida.Cupon))
+				.ForMember(x => x.BaseRectificada, o => o.MapFrom(c => c.DatosFacturaEmitida.ImporteRectificacion.BaseRectificada.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.CuotaRectificada, o => o.MapFrom(c => c.DatosFacturaEmitida.ImporteRectificacion.CuotaRectificada.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.CuotaRecargoRectificada, o => o.MapFrom(c => c.DatosFacturaEmitida.ImporteRectificacion.CuotaRecargoRectificado.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.DesgloseTipoOperacion, o => o.MapFrom(c => c.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega != null ? 1 : 2))
+
+				.ForMember(x => x.NifContraparte, o => o.MapFrom(c => c.DatosFacturaEmitida.Contraparte.NIF))
+				.ForMember(x => x.NombreContraparte, o => o.MapFrom(c => c.DatosFacturaEmitida.Contraparte.NombreRazon))
+				.ForMember(x => x.NIFRepresentante, o => o.MapFrom(c => c.DatosFacturaEmitida.Contraparte.NIFRepresentante))
+				.ForMember(x => x.CodigoPaisContraparte, o => o.MapFrom(c => c.DatosFacturaEmitida.Contraparte.IDOtro.CodigoPais))
+				.ForMember(x => x.IDTypeContraparte, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaEmitida.Contraparte.IDOtro.IDType) ? c.DatosFacturaEmitida.Contraparte.IDOtro.IDType : null))
+				.ForMember(x => x.IDContraparte, o => o.MapFrom(c => c.DatosFacturaEmitida.Contraparte.IDOtro.ID.Trim()))
+				.ForMember(x => x.TipoDesglose, o => o.MapFrom(c => c.DatosFacturaEmitida.TipoDesglose.DesgloseFactura != null ? 1 : 2))
+
+				.ForMember(x => x.IdEstadoCuadre, o => o.MapFrom(c => c.EstadoFactura.EstadoCuadre))
+				.ForMember(x => x.IdEstadoRegistro, o => o.MapFrom(c => c.EstadoFactura.EstadoRegistro.ToNullableEnumEstadoRegistro()))
+				.ForMember(x => x.CodigoErrorRegistro, o => o.MapFrom(c => !string.IsNullOrEmpty(c.EstadoFactura.CodigoErrorRegistro) ? c.EstadoFactura.CodigoErrorRegistro.Trim().parseToNullableInt() : null))
+				.ForMember(x => x.DescripcionErrorRegistro, o => o.MapFrom(c => !string.IsNullOrEmpty(c.EstadoFactura.DescripcionErrorRegistro) ? c.EstadoFactura.DescripcionErrorRegistro.Trim().parseToNullableInt() : null));
+
+
+			CreateMap<Entities.Model.BaseType.Consulta.Response.AEAT.RespuestaConsultaLRFacturasRecibidas, ERegistroInformacion>()
+				.ForMember(x => x.IdLibroRegistro, o => o.MapFrom(c => EnumLibroRegistro.FR.ToString()))
+				.ForMember(x => x.NifDeclarante, o => o.MapFrom(c => c.Cabecera.Titular.NIF))
+				.ForMember(x => x.NombreRazon, o => o.MapFrom(c => c.Cabecera.Titular.NombreRazon))
+				.ForMember(x => x.Periodo, o => o.MapFrom(c => c.PeriodoLiquidacion.Periodo))
+				.ForMember(x => x.Ejercicio, o => o.MapFrom(c => c.PeriodoLiquidacion.Ejercicio));
+
+			CreateMap<Entities.Model.BaseType.Consulta.Response.AEAT.RegistroRespuestaConsultaLRFacturasRecibidas, ERegistroInformacion>()
+				.ForMember(x => x.IdLibroRegistro, o => o.MapFrom(c => EnumLibroRegistro.FR.ToString()))
+				.ForMember(x => x.NifFacturaEmisor, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.NIF.Trim()))
+				.ForMember(x => x.NumSerieFacturaEmisor, o => o.MapFrom(c => c.IDFactura.NumSerieFacturaEmisor.Trim()))
+				.ForMember(x => x.FechaExpedicionFacturaEmisor, o => o.MapFrom(c => !string.IsNullOrEmpty(c.IDFactura.FechaExpedicionFacturaEmisor)
+							? c.IDFactura.FechaExpedicionFacturaEmisor.parseToDateTime() : new DateTime(1900, 1, 1)))
+				.ForMember(x => x.IDIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.ID.Trim()))
+				.ForMember(x => x.CodigoPaisIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.CodigoPais.Trim()))
+				.ForMember(x => x.IDTypeIdFactura, o => o.MapFrom(c => c.IDFactura.IDEmisorFactura.IDOtro.IDType.Trim()))
+
+				.ForMember(x => x.IdEstadoCuadre, o => o.MapFrom(c => !string.IsNullOrEmpty(c.EstadoFactura.EstadoCuadre) ? c.EstadoFactura.EstadoCuadre.Trim().parseToNullableInt() : null))
+				.ForMember(x => x.IdEstadoRegistro, o => o.MapFrom(c => c.EstadoFactura.EstadoRegistro.ToNullableEnumEstadoRegistro()))
+				.ForMember(x => x.CodigoErrorRegistro, o => o.MapFrom(c => !string.IsNullOrEmpty(c.EstadoFactura.CodigoErrorRegistro) ? c.EstadoFactura.CodigoErrorRegistro.Trim().parseToNullableInt() : null))
+				.ForMember(x => x.DescripcionErrorRegistro, o => o.MapFrom(c => !string.IsNullOrEmpty(c.EstadoFactura.DescripcionErrorRegistro) ? c.EstadoFactura.DescripcionErrorRegistro.Trim().parseToNullableInt() : null))
+
+				.ForMember(x => x.NifContraparte, o => o.MapFrom(c => c.DatosFacturaRecibida.Contraparte.NIF))
+				.ForMember(x => x.NombreContraparte, o => o.MapFrom(c => c.DatosFacturaRecibida.Contraparte.NombreRazon))
+				.ForMember(x => x.NIFRepresentante, o => o.MapFrom(c => c.DatosFacturaRecibida.Contraparte.NIFRepresentante))
+				.ForMember(x => x.CodigoPaisContraparte, o => o.MapFrom(c => c.DatosFacturaRecibida.Contraparte.IDOtro.CodigoPais))
+				.ForMember(x => x.IDTypeContraparte, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.Contraparte.IDOtro.IDType) ? c.DatosFacturaRecibida.Contraparte.IDOtro.IDType : null))
+				.ForMember(x => x.IDContraparte, o => o.MapFrom(c => c.DatosFacturaRecibida.Contraparte.IDOtro.ID.Trim()))
+
+				.ForMember(x => x.TipoFactura, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.TipoFactura) ? c.DatosFacturaRecibida.TipoFactura : null))
+				.ForMember(x => x.TipoRectificativa, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.TipoRectificativa) ? c.DatosFacturaRecibida.TipoRectificativa : null))
+				.ForMember(x => x.BaseRectificada, o => o.MapFrom(c => c.DatosFacturaRecibida.ImporteRectificacion.BaseRectificada.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.CuotaRectificada, o => o.MapFrom(c => c.DatosFacturaRecibida.ImporteRectificacion.CuotaRectificada.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.CuotaRecargoRectificada, o => o.MapFrom(c => c.DatosFacturaRecibida.ImporteRectificacion.CuotaRecargoRectificado.Trim().Replace(".", ",").parseToNullableDecimal()))
+				.ForMember(x => x.FechaOperacion, o => o.MapFrom(c => c.DatosFacturaRecibida.FechaOperacion))
+				.ForMember(x => x.ClaveRegimenEspecialOTrascendencia, o => o.MapFrom(c => c.DatosFacturaRecibida.ClaveRegimenEspecialOTrascendencia))
+				.ForMember(x => x.ImporteTotal, o => o.MapFrom(c => c.DatosFacturaRecibida.ImporteTotal.Trim().Replace(".", ",").parseToDecimal()))
+				.ForMember(x => x.BaseImponibleACoste, o => o.MapFrom(c => c.DatosFacturaRecibida.BaseImponibleACoste.parseToDecimal()))
+				.ForMember(x => x.DescripcionOperacion, o => o.MapFrom(c => c.DatosFacturaRecibida.DescripcionOperacion))
+				.ForMember(x => x.FechaRegContable, o => o.MapFrom(c => c.DatosFacturaRecibida.FechaRegContable.parseToNullableDateTime()))
+				.ForMember(x => x.CuotaDeducible, o => o.MapFrom(c => c.DatosFacturaRecibida.CuotaDeducible.Trim().Replace(".", ",").parseToNullableDecimal()))
+
+				.ForMember(x => x.TipoDesglose, o => o.MapFrom(c => 1))
+				.ForMember(x => x.DesgloseTipoOperacion, o => o.MapFrom(c => c.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo != null ? 1 : 2))
+				.ForMember(x => x.ADeducirEnPeriodoPosterior, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.ADeducirEnPeriodoPosterior) ? c.DatosFacturaRecibida.ADeducirEnPeriodoPosterior.Trim() : null))
+				.ForMember(x => x.EjercicioDeduccion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.EjercicioDeduccion) ? c.DatosFacturaRecibida.EjercicioDeduccion.Trim().parseToNullableInt() : null))
+				.ForMember(x => x.PeriodoDeduccion, o => o.MapFrom(c => !string.IsNullOrEmpty(c.DatosFacturaRecibida.PeriodoDeduccion) ? c.DatosFacturaRecibida.PeriodoDeduccion.Trim() : null));
+
+
+			#endregion
+		}
 	}
 
 	/// <summary>

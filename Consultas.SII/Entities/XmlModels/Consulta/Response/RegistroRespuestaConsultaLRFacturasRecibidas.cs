@@ -28,6 +28,39 @@ namespace Consultas.SII.Entities.Model.BaseType.Consulta.Response
 			set => this.fechaExpedicionFacturaEmisorField = value;
 		}
 	}
+	public partial class DetalleInmueble
+	{
+
+		private string situacionInmuebleField;
+
+		private string referenciaCatastralField;
+
+		/// <remarks/>
+		public string SituacionInmueble
+		{
+			get
+			{
+				return this.situacionInmuebleField;
+			}
+			set
+			{
+				this.situacionInmuebleField = value;
+			}
+		}
+
+		/// <remarks/>
+		public string ReferenciaCatastral
+		{
+			get
+			{
+				return this.referenciaCatastralField;
+			}
+			set
+			{
+				this.referenciaCatastralField = value;
+			}
+		}
+	}
 	public partial class ImporteRectificacion
 	{
 

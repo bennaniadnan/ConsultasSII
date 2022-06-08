@@ -2,6 +2,8 @@
 using Consultas.SII.Entities;
 using Consultas.SII.Entities.Request;
 
+using Gesisa.Apps.Common;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,7 +25,8 @@ namespace Consultas.SII.Controllers
             _consultationService = consultationService;
         }
 
-        public async Task<ActionResult<ICollection<ERegistroInformacion>>> ConsultationLR(ConsultaFacturasRequest request)
+        [HttpPost("~/ConsultationLR")]
+        public async Task<ActionResult<ListResult<ERegistroInformacion>>> ConsultationLR(ConsultaFacturasRequest request)
         {
             return Ok(await _consultationService.ConsultaLRAsync(request));
         }

@@ -21,7 +21,7 @@ namespace Consultas.SII.Services
 		{
 			_config = configuration;
 			_connection = connection;
-			_commandTimeout = int.Parse(_config.GetSection("ConnectionTimeout").Value);
+			_commandTimeout = 120;
 		}
 
 		public IDbConnection GetPuenteSiiDatabaseConnectionString

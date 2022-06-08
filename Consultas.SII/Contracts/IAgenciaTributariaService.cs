@@ -11,6 +11,13 @@ using System.Threading.Tasks;
 
 namespace Consultas.SII.Contracts
 {
+
+    /// <summary>
+    /// the application secrets accessor service
+    /// </summary>
+    public interface IApplicationSecretsAccessor
+    {
+    }
     /// <summary>
     /// the Resolver to resolve the Soap Endpoint base on the agency and invoiceType
     /// </summary>
