@@ -1,5 +1,8 @@
 ﻿using Consultas.SII.Entities;
+using Consultas.SII.Entities.Model.BaseType.Consulta.Request.Contraste;
 using Consultas.SII.Entities.Request;
+
+using Gesisa.Apps.Common;
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +13,7 @@ namespace Consultas.SII.Contracts
 {
     public interface IConsultationService
     {
-        Task<ICollection<ERegistroInformacion>> ConsultaLRAsync(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion = null);
+        Task<ListResult<ERegistroInformacion>> ConsultaLRAsync(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion = null);
 
     }
 }

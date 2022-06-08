@@ -1,6 +1,18 @@
-﻿using Consultas.SII.Contracts;
+﻿using AutoMapper;
+
+using Consultas.SII.Contracts;
 using Consultas.SII.Entities;
+using Consultas.SII.Entities.Enumerator;
+using Consultas.SII.Entities.Model.BaseType.Consulta;
+using Consultas.SII.Entities.Model.BaseType.Consulta.Request.Contraste;
+using Consultas.SII.Entities.Model.BaseType.Consulta.Response.AEAT;
 using Consultas.SII.Entities.Request;
+using Consultas.SII.Helpers;
+
+using Gesisa.Apps.Common;
+using Gesisa.Apps.Common.Enums;
+
+using Microsoft.Extensions.Logging;
 
 using System;
 using System.Collections.Generic;
@@ -13,12 +25,18 @@ namespace Consultas.SII.Services
     public class ConsultationService : IConsultationService
     {
         private readonly IAgenciaTributariaService _agenciaTributariaService;
+        private readonly IMapper _mapper;
+        private readonly ILogger<ConsultationService> _loggerManager;
 
-        public ConsultationService(IAgenciaTributariaService agenciaTributariaService)
+        public ConsultationService(IAgenciaTributariaService agenciaTributariaService,
+            IMapper mapper,
+            ILogger<ConsultationService> loggerManager)
         {
             _agenciaTributariaService = agenciaTributariaService;
+            _mapper = mapper;
+            _loggerManager = loggerManager;
         }
-        public async Task<ICollection<ERegistroInformacion>> ConsultaLRAsync(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion = null)
+        public async Task<ListResult<ERegistroInformacion>> ConsultaLRAsync(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion = null)
         {
             List<ERegistroInformacion> mappedRegistros = new List<ERegistroInformacion>();
             try
@@ -30,11 +48,19 @@ namespace Consultas.SII.Services
                     // 2. Call Process Service
                     var result = await _agenciaTributariaService.SendXmlRequestAsync(request.IdAgencia, request.IdLibroRegistro, xmlRequestFile);
                     // 3. Map response
-                    if (string.IsNullOrEmpty(result.ResponseXmlFilePath) || !File.Exists(result.ResponseXmlFilePath))
+                    if (!result.IsSuccess())
                     {
                         // Log and return
-
-                        throw new FileNotFoundException("Could not get the response file from agency", result.ResponseXmlFilePath);
+                        _loggerManager.LogError($"{result.Message}");
+                        return new ListResult<ERegistroInformacion>()
+                        {
+                            Message = result.Message,
+                            Errors = result.Errors,
+                            Code = result.Code,
+                            LogTraceCode = result.LogTraceCode,
+                            Status = result.Status,
+                            Data = mappedRegistros
+                        };
                     }
                     var xmlResponseFile = result.Data.ResponseXmlFilePath;
                     if (string.IsNullOrEmpty(xmlResponseFile) || !File.Exists(xmlResponseFile))
@@ -53,10 +79,10 @@ namespace Consultas.SII.Services
                     }
 
 
-                    XmlFiles.NewResponseNamespaceSerializer(xmlResponseFile, dataUser.IdAgencia);
+                    XmlFiles.NewResponseNamespaceSerializer(xmlResponseFile, request.IdAgencia);
                     RespuestaConsultaEnvelope xmlResponse = XmlFiles.DeserializeXMLFileToObject<RespuestaConsultaEnvelope>(xmlResponseFile);
                     clavePaginacion = GetClavePaginacion(xmlResponse, request);
-                    var resultRespuesta = MapResponse(xmlResponse, dataUser);
+                    var resultRespuesta = MapResponse(xmlResponse);
                     if (resultRespuesta.Any())
                     {
                         mappedRegistros.AddRange(resultRespuesta);
@@ -70,7 +96,7 @@ namespace Consultas.SII.Services
                 // 4. Register to a fake database
                 foreach (var registro in mappedRegistros)
                 {
-                    _siiRepository.InsertUpdateRegistroInformacion(registro, "A0", dataUser);
+                    _siiRepository.InsertUpdateRegistroInformacion(registro, "A0");
                 }
 
                 // 5. Log and return 
@@ -110,7 +136,7 @@ namespace Consultas.SII.Services
                     Data = mappedRegistros
                 };
             }
-            List<ERegistroInformacion> MapResponse(RespuestaConsultaEnvelope xmlResponse, DataUser dataUser)
+            List<ERegistroInformacion> MapResponse(RespuestaConsultaEnvelope xmlResponse)
             {
                 List<ERegistroInformacion> eRegistros = new List<ERegistroInformacion>();
                 if (xmlResponse.Body.RespuestaConsultaLRFacturasEmitidas != null)
@@ -121,7 +147,7 @@ namespace Consultas.SII.Services
                     {
                         foreach (var vRegistroConsulta in xmlResponse.Body.RespuestaConsultaLRFacturasEmitidas.RegistroRespuestaConsultaLRFacturasEmitidas)
                         {
-                            var mapperdRegistro = MapRegistroRespuestaConsultaLRFacturasEmitidas(dataUser, initialRegistro, vRegistroConsulta);
+                            var mapperdRegistro = MapRegistroRespuestaConsultaLRFacturasEmitidas(request, initialRegistro, vRegistroConsulta);
                             eRegistros.Add(mapperdRegistro);
                         }
                     }
@@ -134,7 +160,7 @@ namespace Consultas.SII.Services
                     {
                         foreach (var vRegistroConsulta in xmlResponse.Body.RespuestaConsultaLRFacturasRecibidas.RegistroRespuestaConsultaLRFacturasRecibidas)
                         {
-                            var mapperdRegistro = MapRegistroRespuestaConsultaLRFacturasRecibidas(dataUser, initialRegistro, vRegistroConsulta);
+                            var mapperdRegistro = MapRegistroRespuestaConsultaLRFacturasRecibidas(request, initialRegistro, vRegistroConsulta);
                             eRegistros.Add(mapperdRegistro);
                         }
                     }
@@ -142,51 +168,25 @@ namespace Consultas.SII.Services
 
                 return eRegistros;
             }
-            ConsultaLRFacturasEmitidas GetConsultaLRFacturasEmitidas(ConsultaFacturasRequest request, DataUser dataUser, ConsultaClavePaginacion clavePaginacion)
+            ConsultaLRFacturasEmitidas GetConsultaLRFacturasEmitidas(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion)
             {
                 ConsultaLRFacturasEmitidas consultaLR;
-                var companyUsers = _puenteSiiAuthenticationRepository.GetCompanyUsersByFilter(new UsersFilter
-                {
-                    GesisaIdentifier = dataUser.IdUsuario
-                });
-                if (companyUsers != null && companyUsers.Any())
-                {
-                    var company = companyUsers.FirstOrDefault().Company;
-                    if (company != null)
-                    {
                         consultaLR = new ConsultaLRFacturasEmitidas()
                         {
-                            Cabecera = GetConsultaCabecera(company, dataUser.IdAgencia),
-                            FiltroConsulta = GetConsultaFiltroConsulta(request, dataUser.IdAgencia, clavePaginacion)
+                            Cabecera = GetConsultaCabecera(request.CompanyNif, request.CompanyDenomination, request.IdAgencia),
+                            FiltroConsulta = GetConsultaFiltroConsulta(request, request.IdAgencia, clavePaginacion)
                         };
                         return consultaLR;
-                    }
-                    throw new ArgumentException($"company not found for this gesisa identifier '{dataUser.IdUsuario}'", nameof(dataUser.IdUsuario));
-                }
-                throw new ArgumentException($"user not found for this gesisa identifier '{dataUser.IdUsuario}'", nameof(dataUser.IdUsuario));
             }
-            ConsultaLRFacturasRecibidas GetConsultaLRFacturasRecibidas(ConsultaFacturasRequest request, DataUser dataUser, ConsultaClavePaginacion clavePaginacion)
+            ConsultaLRFacturasRecibidas GetConsultaLRFacturasRecibidas(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion)
             {
                 ConsultaLRFacturasRecibidas consultaLR;
-                var companyUsers = _puenteSiiAuthenticationRepository.GetCompanyUsersByFilter(new UsersFilter
-                {
-                    GesisaIdentifier = dataUser.IdUsuario
-                });
-                if (companyUsers != null && companyUsers.Any())
-                {
-                    var company = companyUsers.FirstOrDefault().Company;
-                    if (company != null)
-                    {
                         consultaLR = new ConsultaLRFacturasRecibidas()
                         {
-                            Cabecera = GetConsultaCabecera(company, dataUser.IdAgencia),
-                            FiltroConsulta = GetConsultaFiltroConsulta(request, dataUser.IdAgencia, clavePaginacion)
+                            Cabecera = GetConsultaCabecera(request.CompanyNif, request.CompanyDenomination, request.IdAgencia),
+                            FiltroConsulta = GetConsultaFiltroConsulta(request, request.IdAgencia, clavePaginacion)
                         };
                         return consultaLR;
-                    }
-                    throw new ArgumentException($"company not found for this gesisa identifier '{dataUser.IdUsuario}'", nameof(dataUser.IdUsuario));
-                }
-                throw new ArgumentException($"user not found for this gesisa identifier '{dataUser.IdUsuario}'", nameof(dataUser.IdUsuario));
             }
             ConsultaFiltroConsulta GetConsultaFiltroConsulta(ConsultaFacturasRequest request, string idAgencia, ConsultaClavePaginacion clavePaginacion = null)
             {
@@ -216,15 +216,15 @@ namespace Consultas.SII.Services
                     ClavePaginacion = clavePaginacion
                 };
             }
-            ConsultaCabecera GetConsultaCabecera(Company company, string idAgencia)
+            ConsultaCabecera GetConsultaCabecera(string nif, string denominacion, string idAgencia)
             {
                 return new ConsultaCabecera()
                 {
                     IDVersionSii = idAgencia == "ATC" ? 1.0m : 1.1m,
                     Titular = new ConsultaTitular()
                     {
-                        NIF = company.NIF,
-                        NombreRazon = company.Denomination
+                        NIF = nif,
+                        NombreRazon = denominacion
                     },
                 };
             }
@@ -269,20 +269,20 @@ namespace Consultas.SII.Services
                 }
                 return clavePaginacion;
             }
-            string CreateRequestFile(ConsultaFacturasRequest request, DataUser dataUser, ConsultaClavePaginacion clavePaginacion)
+            string CreateRequestFile(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion)
             {
                 string xmlRequestFile;
                 if (request.IdLibroRegistro.Equals(EnumLibroRegistro.FE.ToString(), StringComparison.InvariantCultureIgnoreCase))
                 {
-                    var consultaFE = GetConsultaLRFacturasEmitidas(request, dataUser, clavePaginacion);
-                    xmlRequestFile = XmlFiles.CreateXmlFileFromModel(consultaFE, dataUser.IdUsuario, ".xml");
-                    XmlFiles.NewNamespaceSerializer(xmlRequestFile, dataUser.IdAgencia);
+                    var consultaFE = GetConsultaLRFacturasEmitidas(request, clavePaginacion);
+                    xmlRequestFile = XmlFiles.CreateXmlFileFromModel(consultaFE, ".xml");
+                    XmlFiles.NewNamespaceSerializer(xmlRequestFile, request.IdAgencia);
                 }
                 else if (request.IdLibroRegistro.Equals(EnumLibroRegistro.FR.ToString(), StringComparison.InvariantCultureIgnoreCase))
                 {
-                    var consultaFR = GetConsultaLRFacturasRecibidas(request, dataUser, clavePaginacion);
-                    xmlRequestFile = XmlFiles.CreateXmlFileFromModel(consultaFR, dataUser.IdUsuario, ".xml");
-                    XmlFiles.NewNamespaceSerializer(xmlRequestFile, dataUser.IdAgencia);
+                    var consultaFR = GetConsultaLRFacturasRecibidas(request, clavePaginacion);
+                    xmlRequestFile = XmlFiles.CreateXmlFileFromModel(consultaFR, ".xml");
+                    XmlFiles.NewNamespaceSerializer(xmlRequestFile, request.IdAgencia);
                 }
                 else
                 {
@@ -293,5 +293,301 @@ namespace Consultas.SII.Services
             }
 
         }
+
+        private ERegistroInformacion MapRegistroRespuestaConsultaLRFacturasEmitidas(ConsultaFacturasRequest request, ERegistroInformacion registro, RegistroRespuestaConsultaLRFacturasEmitidas vRegistroConsulta)
+        {
+            var mapperdRegistro = _mapper.Map<RegistroRespuestaConsultaLRFacturasEmitidas, ERegistroInformacion>(vRegistroConsulta);
+            mapperdRegistro.NombreRazon = registro.NombreRazon;
+            mapperdRegistro.Ejercicio = registro.Ejercicio;
+            mapperdRegistro.Periodo = registro.Periodo;
+            mapperdRegistro.NifDeclarante = registro.NifDeclarante;
+            if (vRegistroConsulta.DatosFacturaEmitida.FacturasAgrupadas != null && vRegistroConsulta.DatosFacturaEmitida.FacturasAgrupadas.Any())
+                mapperdRegistro.ListFacturasAgrupadas = vRegistroConsulta.DatosFacturaEmitida.FacturasAgrupadas.Select(x => _mapper.Map<RespuestaConsultaIDFacturaAgrupada, EFacturasAgrupadas>(x)).ToList();
+            if (vRegistroConsulta.DatosFacturaEmitida.FacturasRectificadas != null && vRegistroConsulta.DatosFacturaEmitida.FacturasRectificadas.Any())
+                mapperdRegistro.ListFacturasRectificadas = vRegistroConsulta.DatosFacturaEmitida.FacturasRectificadas.Select(x => _mapper.Map<RespuestaConsultaIDFacturaRectificada, EFacturasRectificadas>(x)).ToList();
+            if (vRegistroConsulta.DatosDescuadreContraparte != null)
+                mapperdRegistro.DatosDescuadreContraparte = _mapper.Map<RespuestaConsultaDatosDescuadreContraparte, EDatosDescuadreContraparte>(vRegistroConsulta.DatosDescuadreContraparte);
+            mapperdRegistro.DatosComplementarios = _mapper.Map<RespuestaConsultaDatosFacturaEmitida, EDatosComplementarios>(vRegistroConsulta.DatosFacturaEmitida);
+
+            if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura != null)
+            {
+                List<EDetalleImportesIVA> vDetalleImportesIvaDesglose = new List<EDetalleImportesIVA>();
+                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta != null)
+                {
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.Exenta != null && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.Exenta.Any())
+                    {
+                        mapperdRegistro.CausaExencion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.Exenta[0].CausaExencion;
+                        mapperdRegistro.BaseImponible = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.Exenta[0].BaseImponible?.Trim()?.Replace(".", ",").parseToDecimal();
+                    }
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta != null)
+                    {
+                        mapperdRegistro.TipoNoExenta = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta.TipoNoExenta;
+                        if (request.IdAgencia != "ATC")
+                        {
+                            if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta.DesgloseIVA != null
+                                && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta.DesgloseIVA.Any())
+                            {
+                                vDetalleImportesIvaDesglose = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                    .DesgloseFactura.Sujeta.NoExenta.DesgloseIVA.Select(x => _mapper.Map<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>(x)).ToList();
+                                vDetalleImportesIvaDesglose.ForEach(x => x.IdTipoDetalleIVA = 0);
+                            }
+                        }
+                        else
+                        {
+                            if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta.DesgloseIGIC != null
+                                && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.Sujeta.NoExenta.DesgloseIGIC.Any())
+                            {
+                                vDetalleImportesIvaDesglose = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                    .DesgloseFactura.Sujeta.NoExenta.DesgloseIGIC.Select(x => _mapper.Map<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>(x)).ToList();
+                                vDetalleImportesIvaDesglose.ForEach(x => x.IdTipoDetalleIVA = 0);
+                            }
+                        }
+                    }
+                }
+                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.NoSujeta != null)
+                {
+                    if (request.IdAgencia == "ATC")
+                    {
+                        mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.NoSujeta.ImportePorArticulos9_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                    }
+                    else
+                    {
+                        mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.NoSujeta.ImportePorArticulos7_14_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                    }
+                    mapperdRegistro.ImporteTAIReglasLocalizacion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseFactura.NoSujeta.ImporteTAIReglasLocalizacion?.Trim()?.Replace(".", ",").parseToDecimal();
+                }
+
+                if (mapperdRegistro.ListDetailIva != null)
+                {
+                    mapperdRegistro.ListDetailIva.AddRange(vDetalleImportesIvaDesglose);
+                }
+                else if (mapperdRegistro.ListDetailIva == null && vDetalleImportesIvaDesglose.Any())
+                {
+                    mapperdRegistro.ListDetailIva = vDetalleImportesIvaDesglose;
+                }
+            }
+            if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion != null)
+            {
+
+                List<EDetalleImportesIVA> vDetalleImportesIvaPrestacion = new List<EDetalleImportesIVA>();
+                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                        .DesgloseTipoOperacion.PrestacionServicios != null)
+                {
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta != null)
+                    {
+                        if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.Exenta != null && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.Exenta.Any())
+                        {
+                            mapperdRegistro.CausaExencion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.Exenta[0].CausaExencion;
+                            mapperdRegistro.BaseImponible = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.Exenta[0].BaseImponible?.Trim()?.Replace(".", ",").parseToDecimal();
+                        }
+                        if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta != null)
+                        {
+                            mapperdRegistro.TipoNoExenta = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.TipoNoExenta;
+                            if (request.IdAgencia != "ATC")
+                            {
+                                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIVA != null
+                                                                && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIVA.Any())
+                                {
+                                    vDetalleImportesIvaPrestacion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                        .DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIVA.Select(x => _mapper.Map<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>(x)).ToList();
+                                    vDetalleImportesIvaPrestacion.ForEach(x => x.IdTipoDetalleIVA = 3);
+
+                                }
+                            }
+                            else
+                            {
+                                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIGIC != null
+                                                                                                        && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIGIC.Any())
+                                {
+                                    vDetalleImportesIvaPrestacion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                        .DesgloseTipoOperacion.PrestacionServicios.Sujeta.NoExenta.DesgloseIGIC.Select(x => _mapper.Map<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>(x)).ToList();
+                                    vDetalleImportesIvaPrestacion.ForEach(x => x.IdTipoDetalleIVA = 3);
+
+                                }
+                            }
+                        }
+                    }
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.NoSujeta != null)
+                    {
+                        if (request.IdAgencia == "ATC")
+                        {
+                            mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.NoSujeta.ImportePorArticulos9_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                        }
+                        else
+                        {
+                            mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.NoSujeta.ImportePorArticulos7_14_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                        }
+                        mapperdRegistro.ImporteTAIReglasLocalizacion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.PrestacionServicios.NoSujeta.ImporteTAIReglasLocalizacion?.Trim()?.Replace(".", ",").parseToDecimal();
+                    }
+                    if (mapperdRegistro.ListDetailIva != null)
+                    {
+                        mapperdRegistro.ListDetailIva.AddRange(vDetalleImportesIvaPrestacion);
+                    }
+                    else
+                    {
+                        mapperdRegistro.ListDetailIva = vDetalleImportesIvaPrestacion;
+                    }
+                }
+                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                    .DesgloseTipoOperacion.Entrega != null)
+                {
+                    List<EDetalleImportesIVA> vDetalleImportesIvaEntrega = new List<EDetalleImportesIVA>();
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta != null)
+                    {
+                        if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.Exenta != null && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.Exenta.Any())
+                        {
+                            mapperdRegistro.CausaExencion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.Exenta[0].CausaExencion;
+                            mapperdRegistro.BaseImponible = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.Exenta[0].BaseImponible?.Trim()?.Replace(".", ",").parseToDecimal();
+
+                        }
+                        if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta != null)
+                        {
+                            mapperdRegistro.TipoNoExenta = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.TipoNoExenta;
+
+                            if (request.IdAgencia != "ATC")
+                            {
+                                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIVA != null
+                                                                && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIVA.Any())
+                                {
+                                    vDetalleImportesIvaEntrega = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                        .DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIVA.Select(x => _mapper.Map<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>(x)).ToList();
+                                    vDetalleImportesIvaEntrega.ForEach(x => x.IdTipoDetalleIVA = 2);
+
+                                }
+                            }
+                            else
+                            {
+                                if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIGIC != null
+                                                                && vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIGIC.Any())
+                                {
+                                    vDetalleImportesIvaEntrega = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose
+                                        .DesgloseTipoOperacion.Entrega.Sujeta.NoExenta.DesgloseIGIC.Select(x => _mapper.Map<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>(x)).ToList();
+                                    vDetalleImportesIvaEntrega.ForEach(x => x.IdTipoDetalleIVA = 2);
+
+                                }
+                            }
+                        }
+                    }
+                    if (vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.NoSujeta != null)
+                    {
+                        if (request.IdAgencia == "ATC")
+                        {
+                            mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.NoSujeta.ImportePorArticulos9_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                        }
+                        else
+                        {
+                            mapperdRegistro.ImportePorArticulos7_14_Otros = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.NoSujeta.ImportePorArticulos7_14_Otros?.Trim()?.Replace(".", ",").parseToDecimal();
+                        }
+                        mapperdRegistro.ImporteTAIReglasLocalizacion = vRegistroConsulta.DatosFacturaEmitida.TipoDesglose.DesgloseTipoOperacion.Entrega.NoSujeta.ImporteTAIReglasLocalizacion?.Trim()?.Replace(".", ",").parseToDecimal();
+                    }
+
+                    if (mapperdRegistro.ListDetailIva != null)
+                    {
+                        mapperdRegistro.ListDetailIva.AddRange(vDetalleImportesIvaEntrega);
+                    }
+                    else
+                    {
+                        mapperdRegistro.ListDetailIva = vDetalleImportesIvaEntrega;
+                    }
+                }
+            }
+
+            return mapperdRegistro;
+        }
+
+        private ERegistroInformacion MapRegistroRespuestaConsultaLRFacturasRecibidas(ConsultaFacturasRequest request, ERegistroInformacion initialRegistro, RegistroRespuestaConsultaLRFacturasRecibidas vRegistroConsulta)
+        {
+            var mapperdRegistro = _mapper.Map<RegistroRespuestaConsultaLRFacturasRecibidas, ERegistroInformacion>(vRegistroConsulta);
+            mapperdRegistro.NombreRazon = initialRegistro.NombreRazon;
+            mapperdRegistro.Ejercicio = initialRegistro.Ejercicio;
+            mapperdRegistro.Periodo = initialRegistro.Periodo;
+            mapperdRegistro.NifDeclarante = initialRegistro.NifDeclarante;
+            if (vRegistroConsulta.DatosFacturaRecibida.FacturasAgrupadas != null && vRegistroConsulta.DatosFacturaRecibida.FacturasAgrupadas.Any())
+                mapperdRegistro.ListFacturasAgrupadas = vRegistroConsulta.DatosFacturaRecibida.FacturasAgrupadas.Select(x => _mapper.Map<RespuestaConsultaIDFacturaAgrupada, EFacturasAgrupadas>(x)).ToList();
+            if (vRegistroConsulta.DatosFacturaRecibida.FacturasRectificadas != null && vRegistroConsulta.DatosFacturaRecibida.FacturasRectificadas.Any())
+                mapperdRegistro.ListFacturasRectificadas = vRegistroConsulta.DatosFacturaRecibida.FacturasRectificadas.Select(x => _mapper.Map<RespuestaConsultaIDFacturaRectificada, EFacturasRectificadas>(x)).ToList();
+            if (vRegistroConsulta.DatosDescuadreContraparte != null)
+                mapperdRegistro.DatosDescuadreContraparte = _mapper.Map<RespuestaConsultaDatosDescuadreContraparte, EDatosDescuadreContraparte>(vRegistroConsulta.DatosDescuadreContraparte);
+            mapperdRegistro.DatosComplementarios = _mapper.Map<RespuestaConsultaDatosFacturaRecibida, EDatosComplementarios>(vRegistroConsulta.DatosFacturaRecibida);
+
+            List<EDetalleImportesIVA> vListDetalleIva;
+
+            if (request.IdAgencia == "ATC")
+            {
+                mapperdRegistro.RegistroInformacion_IGIC = _mapper.Map<RegistroRespuestaConsultaLRFacturasRecibidas, ERegistroInformacion_IGIC>(vRegistroConsulta);
+            }
+
+            if (vRegistroConsulta.DatosFacturaRecibida != null && vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura != null)
+            {
+                try
+                {
+                    if (request.IdAgencia != "ATC")
+                    {
+                        if (vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.DesgloseIVA != null)
+                        {
+                            vListDetalleIva = vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.DesgloseIVA.Select(x => _mapper.Map<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>(x)).ToList();
+                            vListDetalleIva.ForEach(x => x.IdTipoDetalleIVA = 0);
+                            mapperdRegistro.ListDetailIva = vListDetalleIva;
+                        }
+                        if (vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo != null)
+                        {
+                            vListDetalleIva = vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo.DetalleIVA.Select(x => _mapper.Map<RespuestaConsultaDetalleIVA, EDetalleImportesIVA>(x)).ToList();
+                            if (vListDetalleIva != null && vListDetalleIva.Any())
+                            {
+                                vListDetalleIva.ForEach(x => x.IdTipoDetalleIVA = 1);
+                            }
+
+                            if (mapperdRegistro.ListDetailIva != null)
+                            {
+                                mapperdRegistro.ListDetailIva.AddRange(vListDetalleIva);
+                            }
+                            else
+                            {
+                                mapperdRegistro.ListDetailIva = vListDetalleIva;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.DesgloseIGIC != null &&
+                            vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.DesgloseIGIC.Any())
+                        {
+
+                            vListDetalleIva = vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.DesgloseIGIC.Select(x => _mapper.Map<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>(x)).ToList();
+                            vListDetalleIva.ForEach(x => x.IdTipoDetalleIVA = 0);
+                            mapperdRegistro.ListDetailIva = vListDetalleIva;
+                        }
+                        if (vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo != null &&
+                            vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo.DetalleIGIC.Any())
+                        {
+                            vListDetalleIva = vRegistroConsulta.DatosFacturaRecibida.DesgloseFactura.InversionSujetoPasivo.DetalleIGIC.Select(x => _mapper.Map<RespuestaConsultaDetalleIGIC, EDetalleImportesIVA>(x)).ToList();
+                            if (vListDetalleIva != null && vListDetalleIva.Count > 0)
+                            {
+                                vListDetalleIva.ForEach(x => x.IdTipoDetalleIVA = 1);
+                            }
+
+                            if (mapperdRegistro.ListDetailIva != null)
+                            {
+                                mapperdRegistro.ListDetailIva.AddRange(vListDetalleIva);
+                            }
+                            else
+                            {
+                                mapperdRegistro.ListDetailIva = vListDetalleIva;
+                            }
+                        }
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw;
+                }
+
+
+            }
+
+            return mapperdRegistro;
+        }
+
     }
 }

@@ -11,5 +11,7 @@ namespace Consultas.SII.Entities.Request
         public string IdLibroRegistro { get; set; }
         public int Ejercicio { get; set; }
         public string Periodo { get; set; }
+        public string CompanyNif { get; internal set; }
+        public string CompanyDenomination { get; internal set; }
     }
 }

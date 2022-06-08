@@ -1,5 +1,7 @@
 ﻿using Consultas.SII.Entities.Response;
 
+using Gesisa.Apps.Common;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,7 +19,7 @@ namespace Consultas.SII.Contracts
         /// <param name="invoiceType">the invoice type</param>
         /// <param name="xmlRequestFilePath">the xml request file path</param>
         /// <returns></returns>
-        Task<AgenciaTributariaResponse> SendXmlRequestAsync(string agency, string invoiceType, string xmlRequestFilePath);
+        Task<Result<AgenciaTributariaResponse>> SendXmlRequestAsync(string agency, string invoiceType, string xmlRequestFilePath);
 
     }
 }

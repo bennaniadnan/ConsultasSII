@@ -12,7 +12,7 @@ namespace Consultas.SII.Services
 {
     public class AgenciaTributariaService : IAgenciaTributariaService
     {
-        public Result<Task<AgenciaTributariaResponse>> SendXmlRequestAsync(string agency, string invoiceType, string xmlRequestFilePath)
+        public Task<Result<AgenciaTributariaResponse>> SendXmlRequestAsync(string agency, string invoiceType, string xmlRequestFilePath)
         {
             throw new NotImplementedException();
         }

@@ -9,6 +9,17 @@ using System.Threading.Tasks;
 namespace Consultas.SII.Entities
 {
 
+    public class AgencyNameSpace
+    {
+        public string Sii { get; set; }
+        public string SiiLR { get; set; }
+        public string SiiLRC { get; set; }
+        public string SiiLRRC { get; set; }
+        public string SiiR { get; set; }
+        public string SoapAddressFE { get; set; }
+        public string SoapAddressFR { get; set; }
+        public string Root { get; set; }
+    }
     public partial class ERegistroInformacion
     {
         public int Id { get; set; }
