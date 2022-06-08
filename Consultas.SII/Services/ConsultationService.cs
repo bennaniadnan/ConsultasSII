@@ -22,18 +22,50 @@ using System.Threading.Tasks;
 
 namespace Consultas.SII.Services
 {
+    /// <summary>
+    /// resolver for resolving soap endpoints
+    /// </summary>
+    public partial class AgencySoapEndPointResolver : IAgencySoapEndPointResolver
+    {
+        /// <inheritdoc/>
+        public async Task<string> ResolveAsync(string agency, string invoiceType)
+        {
+            var communicationUrl = await _repository.GetAgencyCommunicationUrlAsync(agency, invoiceType);
+
+            if (communicationUrl is null)
+                return string.Empty;
+
+            return communicationUrl.Url;
+        }
+    }
+
+    /// <summary>
+    /// partial part for <see cref="AgencySoapEndPointResolver"/>
+    /// </summary>
+    public partial class AgencySoapEndPointResolver : IAgencySoapEndPointResolver
+    {
+        private readonly IAgencyCommunicationUrlRepository _repository;
+
+        public AgencySoapEndPointResolver(IAgencyCommunicationUrlRepository repository)
+        {
+            _repository = repository;
+        }
+    }
     public class ConsultationService : IConsultationService
     {
         private readonly IAgenciaTributariaService _agenciaTributariaService;
         private readonly IMapper _mapper;
+        private readonly ISiiRepository _siiRepository;
         private readonly ILogger<ConsultationService> _loggerManager;
 
         public ConsultationService(IAgenciaTributariaService agenciaTributariaService,
             IMapper mapper,
+            ISiiRepository siiRepository,
             ILogger<ConsultationService> loggerManager)
         {
             _agenciaTributariaService = agenciaTributariaService;
             _mapper = mapper;
+            _siiRepository = siiRepository;
             _loggerManager = loggerManager;
         }
         public async Task<ListResult<ERegistroInformacion>> ConsultaLRAsync(ConsultaFacturasRequest request, ConsultaClavePaginacion clavePaginacion = null)
@@ -96,7 +128,7 @@ namespace Consultas.SII.Services
                 // 4. Register to a fake database
                 foreach (var registro in mappedRegistros)
                 {
-                    _siiRepository.InsertUpdateRegistroInformacion(registro, "A0");
+                    _siiRepository.InsertUpdateRegistroInformacion(registro, "A0", request.IdAgencia);
                 }
 
                 // 5. Log and return 

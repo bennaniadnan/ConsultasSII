@@ -1,8 +1,13 @@
-﻿using Consultas.SII.Entities;
+﻿using Consultas.SII.Contracts;
+using Consultas.SII.Entities;
 using Consultas.SII.Entities.Model.BaseType.Consulta;
 using Consultas.SII.Entities.Model.BaseType.Consulta.Request.Contraste;
 
+using Gesisa.Apps.Common.Enums;
+using Gesisa.Apps.Common.Models;
+
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
@@ -17,6 +22,419 @@ using System.Xml.Serialization;
 
 namespace Consultas.SII.Helpers
 {
+
+	/// <summary>
+	/// the application configuration accessor
+	/// </summary>
+	public partial class ApplicationSettingsAccessor
+	{
+		/// <inheritdoc/>
+		public EnvironmentType GetEnvironmentType()
+		{
+			switch (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"))
+			{
+				case "Production":
+					return EnvironmentType.Production;
+				case "Staging":
+				case "Test":
+					return EnvironmentType.Staging;
+				default:
+					return EnvironmentType.Development;
+			}
+		}
+
+		/// <inheritdoc/>
+		public string GetCsvFilesOutputDirectory() => _applicationSettings.Paths.CsvFilesDirectory;
+
+		/// <inheritdoc/>
+		public string GetTempFileOutPutsDirectory() => _applicationSettings.Paths.TempFilesDirectory;
+
+		/// <inheritdoc/>
+		public string GetXmlRequestDirectory() => _applicationSettings.Paths.XmlRequestDirectory;
+
+		/// <inheritdoc/>
+		public string GetXmlResponseDirectory() => _applicationSettings.Paths.XmlResponseDirectory;
+
+		/// <inheritdoc/>
+		public int GetMaxAllowedRecordsCount() => _applicationSettings.TaxAgency.MaxAllowedRecordsCount;
+
+		/// <inheritdoc/>
+		public (string certificate, string certificateKey) GetAgenciaTributariaCerticate()
+			=> (
+				_applicationSettings.TaxAgency.CertificateSettings.Certificate,
+				_applicationSettings.TaxAgency.CertificateSettings.CertificateKey
+			);
+
+		/// <inheritdoc/>
+		public int GetCurlCommandTimeOut() => _applicationSettings.TaxAgency.CurlCommandTimeOut;
+
+		/// <inheritdoc/>
+		public int GetCurlConnectionTimeOut() => _applicationSettings.TaxAgency.CurlConnectionTimeOut;
+
+		/// <inheritdoc/>
+		public string GetCurlProgramPath() => _applicationSettings.TaxAgency.CurlProgramPath;
+		/// <inheritdoc/>
+		public int GetPasswordExpirationDays() => _applicationSettings.AccountSettings.PasswordExpirationDays;
+
+		/// <inheritdoc/>
+		public string GetTestXmlResponseFilePath()
+		{
+			return @"C:\SII_XMLDATOS\AAAAAA\XML_Respuesta\ConsultaContraste_AAAAAA_20220118_182718.xml";
+		}
+
+		/// <summary>
+		/// get the email Settings
+		/// </summary>
+		/// <returns>the email settings</returns>
+		public EmailSettings GetEmailSettings() => _applicationSettings.EmailSettings;
+
+		/// <inheritdoc/>
+		public string GetUrl(string pathName)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	/// <summary>
+	/// partial part for <see cref="ApplicationSettingsAccessor"/>
+	/// </summary>
+	public partial class ApplicationSettingsAccessor : IApplicationSettingsAccessor
+	{
+		private readonly IDisposable _secretsChangedDisposable;
+		private ApplicationSettings _applicationSettings;
+
+		/// <summary>
+		/// create an instant of <see cref="ApplicationSettingsAccessor"/>
+		/// </summary>
+		/// <param name="options"></param>
+		public ApplicationSettingsAccessor(IOptionsMonitor<ApplicationSettings> options)
+		{
+			_applicationSettings = options.CurrentValue;
+			_secretsChangedDisposable = options.OnChange(e => _applicationSettings = e);
+		}
+
+		/// <summary>
+		/// the object destructor
+		/// </summary>
+		~ApplicationSettingsAccessor()
+		{
+			_secretsChangedDisposable?.Dispose();
+		}
+
+		public string ApplicationName => throw new NotImplementedException();
+
+
+	}
+
+	/// <summary>
+	/// this class hold the global application settings extracted from IConfiguration in the appSettings.json file
+	/// any changes to the AppSetting file should be applied here also
+	/// </summary>
+	public class ApplicationSettings
+	{
+		/// <summary>
+		/// the paths settings
+		/// </summary>
+		public PathsSettings Paths { get; set; }
+
+		/// <summary>
+		/// the application mail settings
+		/// </summary>
+		public EmailSettings EmailSettings { get; set; }
+
+		/// <summary>
+		/// the TaxAgency related settings
+		/// </summary>
+		public TaxAgencySettings TaxAgency { get; set; }
+
+		public AccountSettings AccountSettings { get; set; }
+	}
+
+	/// <summary>
+	/// this class defines the TaxAgency settings
+	/// </summary>
+	public class PathsSettings
+	{
+		public string CsvFilesDirectory { get; set; }
+		public string TempFilesDirectory { get; set; }
+		public string XmlRequestDirectory { get; set; }
+		public string XmlResponseDirectory { get; set; }
+	}
+
+	/// <summary>
+	/// this class defines the TaxAgency settings
+	/// </summary>
+	public class TaxAgencySettings
+	{
+		public int MaxAllowedRecordsCount { get; set; }
+		public int CurlCommandTimeOut { get; set; }
+		public int CurlConnectionTimeOut { get; set; }
+		public string CurlProgramPath { get; set; }
+		public CertificateSettings CertificateSettings { get; set; }
+	}
+
+	/// <summary>
+	/// this class defines the Certificate settings
+	/// </summary>
+	public class CertificateSettings
+	{
+		public string Certificate { get; set; }
+		public string CertificateKey { get; set; }
+	}
+
+	/// <summary>
+	/// this class defines the Certificate settings
+	/// </summary>
+	public class AccountSettings
+	{
+		public int PasswordExpirationDays { get; set; }
+	}
+	public static class DatabaseConstants
+	{
+
+		#region "Database Name"
+
+		/// <summary>
+		/// SII CONNECTIONSTRING instance Properties.Resources.ResourceManager.GetString("SII_CONNECTIONSTRING"); 
+		/// </summary>
+		//public static string DAO_SIIAUTHENTICATION_CONNECTIONSTRING = @"Data Source=siisql;Initial Catalog=B08996274;Integrated Security=False;User Id=SiiAuthenticationUser;Password=SiiVerano17@@;MultipleActiveResultSets=True";
+		//public static string DAO_SII_CONNECTIONSTRING = @"Data Source=DESKTOP-PANBFFQ\SQLSERVEREXPRESS;Initial Catalog=gesisa;Integrated Security=True";
+		//public static string DAO_SIIAUTHENTICATION_CONNECTIONSTRING = @"Data Source=ADNAN\SQLEXPRESS;Initial Catalog=SiiAuthentication;Integrated Security=True";
+		//public static string DAO_SIIAUTHENTICATION_CONNECTIONSTRING = @"Data Source=siitest\SQLEXPRESS;Initial Catalog=SiiAuthentication;Integrated Security=True";
+		public static string DAO_SIIAUTHENTICATION_CONNECTIONSTRING;// = Properties.Settings.Default.SiiConnectionString;
+
+
+
+
+		/// <summary>
+		/// AGREGADORCRUCEROS instance
+		/// </summary>  
+		#endregion
+
+		#region "GET"
+		/// <summary>
+		/// Get EXEMPLE List
+		/// </summary>
+		/// 
+
+
+		//AuthDB
+		public static string USE_GET_USUARIO_BY_EMAIL = "USE_GET_USUARIO_BY_EMAIL";
+		public static string USE_INSERT_UPDATE_USUARIO = "USE_INSERT_UPDATE_USUARIO";
+		public static string USE_GET_USUARIO_BY_RESETCODE = "USE_GET_USUARIO_BY_RESETCODE";
+		public static string USE_GET_USUARIO = "USE_GET_USUARIO";
+		public static string USE_SELECT_USUARIOS = "USE_SELECT_USUARIOS";
+		public static string SOC_SELECT_DATABASENAME = "SOC_SELECT_DATABASENAME";
+		public static string COM_UPDATE_SOCIEDAD = "COM_UPDATE_SOCIEDAD";
+		public static string COM_GET_SOCIEDAD = "COM_GET_SOCIEDAD";
+		public static string USE_GET_SOCIEDAD_USUARIO = "USE_GET_SOCIEDAD_USUARIO";
+		public static string SOC_INSERT_UPDATE_SOCIEDAD = "SOC_INSERT_UPDATE_SOCIEDAD";
+
+
+
+		//SiiDB
+		public static string DET_GET_DETALLE_INMUEBLE = "DET_GET_DETALLE_INMUEBLE";
+		public static string REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_ALL_RECORDS = "REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_ALL_RECORDS";
+		public static string CLA_GET_CLAVEREGIMEN_BY_IDLIBROREGISTRO = "CLA_GET_CLAVEREGIMEN_BY_IDLIBROREGISTRO";
+		public static string TIP_GET_TIPOFACTURA = "TIP_GET_TIPOFACTURA";
+		public static string IDT_GET_IDTYPE = "IDT_GET_IDTYPE";
+		public static string PER_GET_PERIODOS_BY_TIPOPRESENTACION = "PER_GET_PERIODOS_BY_TIPOPRESENTACION";
+		public static string PAR_GET_PARAMETERS_BY_USERID = "PAR_GET_PARAMETERS_BY_USERID";
+		public static string PAR_GET_PARAMETERS_BY_NIF = "PAR_GET_PARAMETERS_BY_NIF";
+		public static string CRD_GET_CREDENCIAL_BY_IDUSER = "CRD_GET_CREDENCIAL_BY_IDUSER";
+		public static string CRD_GET_CREDENCIAL_BY_USERNAME = "CRD_GET_CREDENCIAL_BY_USERNAME";
+		public static string OPE_GET_OPERATIONS_BY_FILTER = "OPE_GET_OPERATIONS_BY_FILTER";
+		public static string OPE_GET_OPERATION_BY_ID_AND_USER = "OPE_GET_OPERATION_BY_ID_AND_USER";
+		public static string OPR_GET_OPERATION_BY_USER = "OPR_GET_OPERATION_BY_USER";
+		public static string RIN_GET_ID_REGISTRO_INFORMATIO_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA = "RIN_GET_ID_REGISTRO_INFORMATIO_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA";
+		public static string CLI_GET_CLIENT_BY_NIF = "CLI_GET_CLIENT_BY_NIF";
+		public static string USR_GET_EMAIL_BY_IDUSER = "USR_GET_EMAIL_BY_IDUSER";
+
+		public static string REG_GET_REGISTROINFORMACION_BY_NIFEMISOR_NUMSERIE_FECHAEXPEDICION = "REG_GET_REGISTROINFORMACION_BY_NIFEMISOR_NUMSERIE_FECHAEXPEDICION";
+		public static string REG_GET_REGISTROSINFORMACION_BY_FILTER = "REG_GET_REGISTROSINFORMACION_BY_FILTER";
+		public static string REG_GET_REGISTROINFORMACION_BY_ID = "REG_GET_REGISTROINFORMACION_BY_ID";
+		public static string REG_GET_ESTADO_LECTURA_BY_IDREGISTRO = "REG_GET_ESTADO_LECTURA_BY_IDREGISTRO";
+		public static string REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO = "REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO";
+		public static string REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_INDEX = "REG_GET_REGISTROS_BY_EJERCICIO_PERIODO_LIBRO_INDEX";
+		public static string OPE_GET_LATEST_OPERATIONS = "OPE_GET_LATEST_OPERATIONS";
+		public static string OPE_GET_LATEST_OPERATIONS_BY_FILTER = "OPE_GET_LATEST_OPERATIONS_BY_FILTER";
+		public static string REG_GET_REGISTROS_APROCESAR = "REG_GET_REGISTROS_APROCESAR";
+		public static string REG_GET_REGISTROS_PENDIENTES_CORRECCION = "REG_GET_REGISTROS_PENDIENTES_CORRECCION";
+
+		public static string TOP_GET_TIPOOPERATION = "TOP_GET_TIPOOPERATION";
+		public static string ROP_GET_RESULTADOOPERATION = "ROP_GET_RESULTADOOPERATION";
+		public static string EOP_GET_ESTADOOPERATION = "EOP_GET_ESTADOOPERATION";
+		public static string ERG_GET_ESTADOREGISTRO = "ERG_GET_ESTADOREGISTRO";
+		public static string LRG_GET_LIBROREGISTRO = "LRG_GET_LIBROREGISTRO";
+
+		public static string DET_GET_DETALLE_IMPORTES_IVA = "DET_GET_DETALLE_IMPORTES_IVA";
+		public static string FAG_GET_FACTURAS_AGRUPADAS = "FAG_GET_FACTURAS_AGRUPADAS";
+		public static string FRC_GET_FACTURAS_RECTIFICADAS = "FRC_GET_FACTURAS_RECTIFICADAS";
+		public static string COB_GET_COBROS_EMITIDAS = "COB_GET_COBROS_EMITIDAS";
+		public static string PAG_GET_PAGOS_RECIBIDAS = "PAG_GET_PAGOS_RECIBIDAS";
+		public static string ROP_GET_REGISTROOPERACION_BY_ID_REGISTROINFORMACION = "ROP_GET_REGISTROOPERACION_BY_ID_REGISTROINFORMACION";
+
+		public static string OPE_GET_OPERACIONES_BY_EJERCICIO_AND_LIBRO = "OPE_GET_OPERACIONES_BY_EJERCICIO_AND_LIBRO";
+		public static string REG_GET_FACTURAS_BY_LIBRO_ESTADO = "REG_GET_FACTURAS_BY_LIBRO_ESTADO";
+
+		public static string REG_GET_FACTURAS_MODIFICADA_BAJA = "REG_GET_FACTURAS_MODIFICADA_BAJA";
+
+		public static string REG_GET_OPEARACIONES_TO_MODAL = "REG_GET_OPEARACIONES_TO_MODAL";
+
+		public static string GET_REG_LIQUIDACION = "GET_REG_LIQUIDACION";
+
+		public static string REG_GET_LIQUIDACION_BY_FILTER = "REG_GET_LIQUIDACION_BY_FILTER";
+
+		public static object REG_GET_LIQUIDACION_BY_FILTER_BY_PAGINA { get; set; }
+
+		public static string LIQ_GET_LIQUIDACION_BY_PERIODIFICACION = "LIQ_GET_LIQUIDACION_BY_PERIODIFICACION";
+
+		public static string LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC = "LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC";
+
+		public static string EST_GET_ESTADO_CUADRE = "EST_GET_ESTADO_CUADRE";
+
+		public static string DAT_GET_DATOS_DESCUADRE_BY_IDREGISTRO = "DAT_GET_DATOS_DESCUADRE_BY_IDREGISTRO";
+
+		public static string TIP_GET_TIPOBIENOPERACION = "TIP_GET_TIPOBIENOPERACION";
+
+		public static string TIP_GET_TIPODOCUMENTO_ART25 = "TIP_GET_TIPODOCUMENTO_ART25";
+
+		public static string REG_GET_REGISTROINFORMACION_IGIC_BYID = "REG_GET_REGISTROINFORMACION_IGIC_BYID";
+
+		public static string CAU_GET_CAUSAEXENCION = "CAU_GET_CAUSAEXENCION";
+
+		public static string CLI_GET_CLIENT_BY_USERID = "CLI_GET_CLIENT_BY_USERID";
+
+		public static string LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC_DI = "LIQ_GET_LIQUIDACION_BY_PERIODIFICACION_ATC_DI";
+		#endregion
+
+		#region "INSERT/UPDATE"
+		/// <summary>
+		/// INSERT UPDATE 
+		/// </summary>
+		public static string REG_UPDATE_ESTADO_CUADRE = "REG_UPDATE_ESTADO_CUADRE";
+		public static string DET_INSERT_DETALLE_INMUEBLE = "DET_INSERT_DETALLE_INMUEBLE";
+		public static string USR_INSERT_OR_UPDATE_USUARIO = "USR_INSERT_OR_UPDATE_USUARIO";
+		public static string CLI_INSERT_ASPNET_CLIENT_CONNECTION = "CLI_INSERT_ASPNET_CLIENT_CONNECTION";
+		public static string USE_INSERT_ASP_NET_USER = "USE_INSERT_ASP_NET_USER";
+
+		public static string OPR_INSERT_OR_UPDATE_OPERACION = "OPR_INSERT_OR_UPDATE_OPERACION";
+		public static string CLT_INSERT_OR_UPDATE_CLIENTE = "CLT_INSERT_OR_UPDATE_CLIENTE";
+		public static string DII_INSERT_OR_UPDATE_DETALLE_IMPORTES_IVA = "DII_INSERT_OR_UPDATE_DETALLE_IMPORTES_IVA";
+		public static string RIN_INSERT_OR_UPDATE_REGISTRO_INFORMACION = "RIN_INSERT_OR_UPDATE_REGISTRO_INFORMACION";
+		public static string LRG_INSERT_OR_UPDATE_LIBRO_REGISTRO = "LRG_INSERT_OR_UPDATE_LIBRO_REGISTRO";
+		public static string ROP_INSERT_OR_UPDATE_REGISTROS_OPERACION = "ROP_INSERT_OR_UPDATE_REGISTROS_OPERACION";
+		public static string TOP_INSERT_OR_UPDATE_TIPO_OPERACION = "TOP_INSERT_OR_UPDATE_TIPO_OPERACION";
+		public static string ESO_INSERT_OR_UPDATE_ESTADO_OPERACION = "ESO_INSERT_OR_UPDATE_ESTADO_OPERACION";
+		public static string RES_INSERT_OR_UPDATE_RESULTADO_OPERACION = "RES_INSERT_OR_UPDATE_RESULTADO_OPERACION";
+		public static string FAG_INSERT_OR_UPDATE_FACTURAS_AGRUPADAS = "FAG_INSERT_OR_UPDATE_FACTURAS_AGRUPADAS";
+		public static string FRC_INSERT_OR_UPDATE_FACTURAS_RECTIFICADAS = "FRC_INSERT_OR_UPDATE_FACTURAS_RECTIFICADAS";
+		public static string CBR_INSERT_OR_UPDATE_COBROS = "CBR_INSERT_OR_UPDATE_COBROS";
+		public static string PGO_INSERT_OR_UPDATE_PAGOS = "PGO_INSERT_OR_UPDATE_PAGOS";
+		public static string ESR_INSERT_OR_UPDATE_ESTADO_REGISTRO = "ESR_INSERT_OR_UPDATE_ESTADO_REGISTRO";
+		public static string TUS_INSERT_OR_UPDATE_TIPO_USUARIO = "TUS_INSERT_OR_UPDATE_TIPO_USUARIO";
+
+		public static string REG_UPDATE_ESTADO_LECTURA_TO_PROCESSADA = "REG_UPDATE_ESTADO_LECTURA_TO_PROCESSADA";
+		public static string REG_UPDATE_ESTADO_LECTURA_BY_ID = "REG_UPDATE_ESTADO_LECTURA_BY_ID";
+
+		public static string REG_UPDATE_REGISTRO_INFORMACION_ESTADO = "REG_UPDATE_REGISTRO_INFORMACION_ESTADO";
+		public static string REG_INSERT_UPDATE_DATOS_COMPLEMENTARIOS = "REG_INSERT_UPDATE_DATOS_COMPLEMENTARIOS";
+		public static string PAR_INSERT_UPDATE_PARAMETERS_BY_CLIENTID = "PAR_INSERT_UPDATE_PARAMETERS_BY_CLIENTID";
+
+		public static string DAT_INSERT_UPDATE_DATOS_DESCUADRE_CONTRAPARTE = "DAT_INSERT_UPDATE_DATOS_DESCUADRE_CONTRAPARTE";
+
+		public static string REG_INSERT_UPDATE_REGISTROINFORMACION_IGIC = "REG_INSERT_UPDATE_REGISTROINFORMACION_IGIC";
+		public static string REG_UPDATE_REGISTROINFORMACION = "REG_UPDATE_REGISTROINFORMACION";
+		public static string CLI_UPDATE_CLIENTE = "CLI_UPDATE_CLIENTE";
+
+
+
+
+		#endregion
+
+		#region "DELETE"
+
+		public static string DET_DELETE_DETALLE_INMUEBLE_BY_IDREGISTRO =
+			"DET_DELETE_DETALLE_INMUEBLE_BY_IDREGISTRO";
+
+		public static string DII_DELETE_DETALLE_IMPORTESIVA_BY_IDREGISTROINFORMACION =
+			"DII_DELETE_DETALLE_IMPORTESIVA_BY_IDREGISTROINFORMACION";
+
+		public static string FAG_DELETE_FACTURA_AGRUPADA_BY_IDREGISTROINFORMACION =
+			"FAG_DELETE_FACTURA_AGRUPADA_BY_IDREGISTROINFORMACION";
+
+		public static string FRC_DELETE_FACTURA_RECTIFICADA_BY_IDREGISTROINFORMACION =
+			"FRC_DELETE_FACTURA_RECTIFICADA_BY_IDREGISTROINFORMACION";
+
+		public static string RIN_BAJA_REGISTROINFORMACION_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA =
+			"RIN_BAJA_REGISTROINFORMACION_BY_NIFFACTURAEMISOR_NUMSERIEFACTURAEMISOR_FECHA";
+
+		public static string COB_DELETE_COBROS_EMITIDAS_BY_IDREGISTROINFORMACION =
+			"COB_DELETE_COBROS_EMITIDAS_BY_IDREGISTROINFORMACION";
+
+		public static string PAG_DELETE_PAGOS_RECIBIDAS_BY_IDREGISTROINFORMACION =
+			"PAG_DELETE_PAGOS_RECIBIDAS_BY_IDREGISTROINFORMACION";
+
+		public static string RIN_BAJA_REGISTROINFORMACION_BY_ID =
+					"RIN_BAJA_REGISTROINFORMACION_BY_ID";
+
+		public static string PAG_DELETE_PAGO_BY_ID = "PAG_DELETE_PAGO_BY_ID";
+		public static string COB_DELETE_COBRO_BY_ID = "COB_DELETE_COBRO_BY_ID";
+
+		public static string MED_GET_MEDIO = "MED_GET_MEDIO";
+		public static string REG_UPDATE_COBROPAGO_NOT_NUEVO = "REG_UPDATE_COBROPAGO_NOT_NUEVO";
+		public static string REG_UPDATE_COBROPAGO_ESTADO = "REG_UPDATE_COBROPAGO_ESTADO";
+
+		public static string OPE_GET_OPERATIONS_BY_CSV = "OPE_GET_OPERATIONS_BY_CSV";
+
+		public static object REG_COUNT_REGISTROS_PENDIENTES_CORRECCION { get; set; }
+		public static object REG_COUNT_REGISTROS_APROCESAR { get; set; }
+		public static object OPE_UPDATE_COUNT_OPERACIONES_PERIODO { get; set; }
+		public static object QUE_UPDATE_FILEQUEUE { get; set; }
+		public static object QUE_GET_FILEQUEUE_BY_FILEGUID { get; set; }
+		public static object STA_GET_STATION_BY_FILEGUID { get; set; }
+		public static object OPE_INSERT_OPERATION { get; set; }
+		public static object LOG_INSERT_LOGS { get; set; }
+		public static string REG_GET_REGISTROS_INFORMATIO_BY_EJERCICIO { get; set; }
+		public static object REG_UPDATE_REGISTRO_INFORMACION_FECHA_FIN_PLAZO { get; set; }
+		public static object OPE_RECALCUL_OPERACIONES_PERIODO { get; set; }
+		public static object REG_COUNT_REGISTROS_APROCESAR_LIBROS { get; set; }
+		public static object REG_COUNT_REGISTROS_PENDIENTES_CORRECCION_LIBROS { get; set; }
+		public static object LIB_COUNT_LIBROS { get; set; }
+		public static object OPE_GET_OPERACIONES_PERIODOS_BY_EJERCICIO { get; set; }
+		public static object REG_GET_REGISTROS_PENDIENTES_CORRECCION_ALL { get; set; }
+		public static object REG_GET_REGISTROSINFORMACION_BY_FILTER_ALL { get; set; }
+		public static object OPE_GET_LATEST_OPERATIONS_BY_FILTER_START_RECORDS { get; set; }
+		public static object REG_UPDATE_REGISTRO_INFORMACION_FECHA_FIN_PLAZO_BY_TABLE { get; set; }
+		public static object OPE_COUNT_OPERACIONES_USUARIO { get; set; }
+		public static object USE_ELIMINAR_USUARIO { get; set; }
+		public static object USE_UPDATE_FOTO { get; set; }
+
+		public static string LIB_GET_LIBROS_BY_SELECTED_IDS = "LIB_GET_LIBROS_BY_SELECTED_IDS";
+		public static string LIB_GET_LIBROS_BY_OTROS_FILTERS = "LIB_GET_LIBROS_BY_OTROS_FILTERS";
+		public static string LIB_GET_LIBROS_BY_EJERCICIO_PERIODO_LIBRO = "LIB_GET_LIBROS_BY_EJERCICIO_PERIODO_LIBRO";
+		public static string REG_GET_REGISTROS_ANULADOS = "REG_GET_REGISTROS_ANULADOS";
+		#endregion
+
+		#region "AuthV2"
+		public static string COM_DELETE_COMPANYUSERS_BY_GESISAIDENTIFIER { get; } = "COM_DELETE_COMPANYUSERS_BY_GESISAIDENTIFIER";
+		public static string USE_DELETE_USER { get; } = "USE_DELETE_USER";
+		public static string COM_GET_COMPANYUSERS_BYFILTER { get; } = "COM_GET_COMPANYUSERS_BYFILTER";
+		public static string COM_GET_COMPANY { get; } = "COM_GET_COMPANY";
+		public static string COM_GET_COMPANYCONNECTION { get; } = "COM_GET_COMPANYCONNECTION";
+		public static string USE_GET_USERS { get; } = "USE_GET_USERS";
+		public static string COM_INSERT_COMPANY { get; } = "COM_INSERT_COMPANY";
+		public static string COM_UPDATE_COMPANY { get; } = "COM_UPDATE_COMPANY";
+		public static string COM_INSERT_COMPANYUSERS { get; } = "COM_INSERT_COMPANYUSERS";
+		public static string COM_UPDATE_COMPANYUSERS { get; } = "COM_UPDATE_COMPANYUSERS";
+		public static string USE_INSERT_USER { get; } = "USE_INSERT_USER";
+		public static string USE_UPDATE_USER { get; } = "USE_UPDATE_USER";
+		public static string CON_GET_CONSULTA_349 { get; } = "CON_GET_CONSULTA_349";
+		public static string REG_GET_REGISTROS_CONSULTA_349 { get; set; } = "REG_GET_REGISTROS_CONSULTA_349";
+		#endregion
+
+
+	}
 
 	public static class XmlFiles
 	{

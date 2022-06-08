@@ -1,5 +1,10 @@
-﻿using System;
+﻿using Consultas.SII.Contracts;
+
+using Microsoft.Extensions.Configuration;
+
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,38 +24,11 @@ namespace Consultas.SII.Services
 			_commandTimeout = int.Parse(_config.GetSection("ConnectionTimeout").Value);
 		}
 
-		public IDbConnection GetConnectionByUser(DataUser dataUser)
-		{
-			if (string.IsNullOrEmpty(_connection.ConnectionString) || dataUser.ConnectionString != _connection.ConnectionString)
-			{
-				_connection.ConnectionString = dataUser.ConnectionString;
-
-			}
-			return _connection;
-		}
-
-		public IDbConnection GetSiiAuthenticationConnectionString
+		public IDbConnection GetPuenteSiiDatabaseConnectionString
 		{
 			get
 			{
-				_connection.ConnectionString = _config.GetConnectionString("SiiCoreAuthentication");
-				return _connection;
-			}
-		}
-		public IDbConnection GetPuenteSiiAuthenticationConnectionString
-		{
-			get
-			{
-				_connection.ConnectionString = _config.GetConnectionString("PuenteSiiAuthentication");
-				return _connection;
-			}
-		}
-
-		public IDbConnection GetSiiHubConnectionString
-		{
-			get
-			{
-				_connection.ConnectionString = _config.GetConnectionString("HubConnectionString");
+				_connection.ConnectionString = _config.GetConnectionString("PuenteSiiDatabase");
 				return _connection;
 			}
 		}

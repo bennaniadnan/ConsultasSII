@@ -9,6 +9,85 @@ using System.Threading.Tasks;
 namespace Consultas.SII.Entities
 {
 
+    /// <summary>
+    /// this class defines the agency api communication endpoint
+    /// </summary>
+    public class AgencyCommunicationUrl
+    {
+        /// <summary>
+        /// the id of the agency Communication URL
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// the agency associated with this URL
+        /// </summary>
+        public string Agency { get; set; }
+
+        /// <summary>
+        /// the document associated with this URL
+        /// </summary>
+        public string DocumentType { get; set; }
+
+        /// <summary>
+        /// the communication URL value
+        /// </summary>
+        public string Url { get; set; }
+    }
+    public class EPaisResidencia
+    {
+
+        public string Id { get; set; }
+
+        public string Descripcion { get; set; }
+    }
+    public class ETipoDocumentoArt25
+    {
+
+        public string Id { get; set; }
+
+        public string Descripcion { get; set; }
+    }
+    public class ETipoBienOperacion
+    {
+
+        public string Id { get; set; }
+
+        public string Descripcion { get; set; }
+    }
+    public class ETipoFactura
+    {
+
+        public string Id { get; set; }
+
+        public string Descripcion { get; set; }
+
+        public int Orden { get; set; }
+
+        public string IdAgencia { get; set; }
+    }
+    public class ECausaExencion
+    {
+
+        public string CausaExencion { get; set; }
+
+        public string IdAgencia { get; set; }
+
+        public string Descripcion { get; set; }
+    }
+
+    public class EClaveRegimen
+    {
+        public string Id { get; set; }
+        public string Descripcion { get; set; }
+    }
+    public class EPeriodo
+    {
+        public string Id { get; set; }
+        public string Texte { get; set; }
+        public string TipoPresentacion { get; set; }
+
+    }
     public class AgencyNameSpace
     {
         public string Sii { get; set; }
